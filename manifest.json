@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "WP Trac Triager",
+  "version": "1.0.0",
+  "description": "Enhance WordPress Trac ticket triage with visual highlights, keyword explanations, and component maintainer info",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "https://core.trac.wordpress.org/*",
+    "https://meta.trac.wordpress.org/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://core.trac.wordpress.org/ticket/*",
+        "https://meta.trac.wordpress.org/ticket/*"
+      ],
+      "js": [
+        "data/keyword-data.js",
+        "data/maintainers-data.js",
+        "content/test-simple.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_end"
+    }
+  ],
+  "options_page": "options/options.html",
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["content/page-inject.js"],
+      "matches": ["https://core.trac.wordpress.org/*", "https://meta.trac.wordpress.org/*"]
+    }
+  ]
+}

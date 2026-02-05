@@ -1,0 +1,32 @@
+# Chrome Extension Development
+
+# Packaged extension
+*.crx
+*.pem
+*.zip
+
+# macOS
+.DS_Store
+
+# Temporary files
+*.log
+*.tmp
+*.swp
+*~
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Node (if you add build tools later)
+npm-debug.log
+node_modules/
+yarn-error.log
+
+# Testing
+test-results/
+coverage/
+
+docs/
