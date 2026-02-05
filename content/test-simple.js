@@ -196,9 +196,19 @@ function findLastCommentByUser(username) {
 }
 
 // Helper: Get last N comments information
-function getRecentComments(count = 3) {
+function getRecentComments(count = 3, contributorData = {}) {
   const changes = document.querySelectorAll('.change');
   if (changes.length === 0) return [];
+
+  // Define role colors (same as highlighting)
+  const roleColors = {
+    'Project Lead': '#9C27B0',
+    'Lead Developer': '#2196F3',
+    'Core Committer': '#4CAF50',
+    'Emeritus Committer': '#FF9800',
+    'Lead Tester': '#E91E63',
+    'Themes Committer': '#00BCD4'
+  };
 
   const recentComments = [];
   // Start from the end and go backwards
@@ -224,50 +234,46 @@ function getRecentComments(count = 3) {
     if (!commentNumber) continue;
 
     // Extract author (username only, without role label)
-    const authorElement = change.querySelector('.trac-author');
+    // Try multiple selectors
+    const authorElement = change.querySelector('.trac-author, .trac-author-user, a[href*="query"]');
     let author = 'unknown';
 
     if (authorElement) {
       // Try to get username from href first (more reliable)
       const href = authorElement.getAttribute('href');
       if (href) {
-        const match = href.match(/[?&](?:reporter|owner|author)=([^&]+)/);
-        if (match) {
-          author = match[1];
+        // Try multiple patterns
+        const patterns = [
+          /[?&](?:reporter|owner|author)=([^&]+)/,
+          /profiles\.wordpress\.org\/([^\/]+)/
+        ];
+
+        for (const pattern of patterns) {
+          const match = href.match(pattern);
+          if (match) {
+            author = match[1];
+            break;
+          }
         }
       }
 
-      // Fallback to text content (but this might include role)
+      // Fallback: extract from text content, removing role labels
       if (author === 'unknown') {
-        author = authorElement.textContent.trim();
+        const text = authorElement.textContent.trim();
+        // Remove common role labels that might be appended
+        author = text.replace(/\s*(Core Committer|Lead Tester|Project Lead|Lead Developer|Emeritus Committer|Themes Committer).*$/, '');
       }
     }
 
-    // Check if author has a role (from wpTracContributorLabels)
-    const dataElement = document.getElementById('wpt-contributor-data');
+    console.log(`Comment #${commentNumber}: author="${author}", hasRole=${!!contributorData[author]}`);
+
+    // Check if author has a role
     let role = null;
     let roleColor = null;
 
-    if (dataElement) {
-      try {
-        const contributorData = JSON.parse(dataElement.getAttribute('data-contributors'));
-        if (contributorData && contributorData[author]) {
-          role = contributorData[author];
-
-          // Map role to color (same colors as highlighting)
-          const roleColors = {
-            'Project Lead': '#9C27B0',
-            'Lead Developer': '#2196F3',
-            'Core Committer': '#4CAF50',
-            'Emeritus Committer': '#FF9800',
-            'Lead Tester': '#E91E63',
-            'Themes Committer': '#00BCD4'
-          };
-          roleColor = roleColors[role] || '#607D8B';
-        }
-      } catch (e) {
-        console.log('Error parsing contributor data:', e);
-      }
+    if (contributorData[author]) {
+      role = contributorData[author];
+      roleColor = roleColors[role] || '#607D8B';
     }
 
     // Extract date
@@ -352,7 +358,7 @@ function extractKeywordHistory() {
 }
 
 // Step 4: Create keyword sidebar
-function createKeywordSidebar() {
+function createKeywordSidebar(contributorData = {}) {
   console.log('🔑 Creating keyword sidebar...');
 
   // Check if data is available
@@ -559,7 +565,7 @@ function createKeywordSidebar() {
   });
 
   // Add recent comments section
-  const recentComments = getRecentComments(3);
+  const recentComments = getRecentComments(3, contributorData);
   if (recentComments.length > 0) {
     const recentCommentsBox = document.createElement('div');
     recentCommentsBox.style.cssText = `
@@ -607,12 +613,27 @@ function createKeywordSidebar() {
         margin-top: 2px;
       `;
 
-      // Build meta text with proper spacing
-      let metaText = `${comment.date} by ${comment.author}`;
+      // Build meta text with linked author name
+      commentMeta.innerHTML = `${comment.date} by `;
+
+      const authorLink = document.createElement('a');
+      authorLink.href = `https://profiles.wordpress.org/${comment.author}/`;
+      authorLink.target = '_blank';
+      authorLink.textContent = comment.author;
+      authorLink.style.cssText = `
+        color: #0969da;
+        text-decoration: none;
+      `;
+      authorLink.onmouseover = () => authorLink.style.textDecoration = 'underline';
+      authorLink.onmouseout = () => authorLink.style.textDecoration = 'none';
+
+      commentMeta.appendChild(authorLink);
+
       if (comment.role) {
-        metaText += ` (${comment.role})`;
+        const roleSpan = document.createElement('span');
+        roleSpan.textContent = ` (${comment.role})`;
+        commentMeta.appendChild(roleSpan);
       }
-      commentMeta.textContent = metaText;
 
       commentItem.appendChild(commentLink);
       commentItem.appendChild(commentMeta);
@@ -814,24 +835,34 @@ function createKeywordSidebar() {
           border-top: 1px solid #ddd;
         `;
 
-        const historyText = document.createElement('span');
-        historyText.textContent = `Added ${history.date} by ${history.author}`;
+        // Create text with linked author name
+        const addedText = document.createTextNode(`Added ${history.date} by `);
+        historyDiv.appendChild(addedText);
+
+        const authorLink = document.createElement('a');
+        authorLink.href = `https://profiles.wordpress.org/${history.author}/`;
+        authorLink.target = '_blank';
+        authorLink.textContent = history.author;
+        authorLink.style.cssText = `
+          color: #2271b1;
+          text-decoration: none;
+        `;
+        authorLink.onmouseover = () => authorLink.style.textDecoration = 'underline';
+        authorLink.onmouseout = () => authorLink.style.textDecoration = 'none';
+        historyDiv.appendChild(authorLink);
 
         if (history.commentLink) {
-          const link = document.createElement('a');
-          link.href = history.commentLink;
-          link.textContent = ' → View comment';
-          link.style.cssText = `
+          const commentLink = document.createElement('a');
+          commentLink.href = history.commentLink;
+          commentLink.textContent = ' → View comment';
+          commentLink.style.cssText = `
             color: #2271b1;
             text-decoration: none;
             margin-left: 4px;
           `;
-          link.onmouseover = () => link.style.textDecoration = 'underline';
-          link.onmouseout = () => link.style.textDecoration = 'none';
-          historyDiv.appendChild(historyText);
-          historyDiv.appendChild(link);
-        } else {
-          historyDiv.textContent = `Added ${history.date} by ${history.author}`;
+          commentLink.onmouseover = () => commentLink.style.textDecoration = 'underline';
+          commentLink.onmouseout = () => commentLink.style.textDecoration = 'none';
+          historyDiv.appendChild(commentLink);
         }
 
         item.appendChild(historyDiv);
@@ -852,6 +883,18 @@ injectPageScript();
 
 // Add keyword sidebar after page loads
 document.addEventListener('wpt-data-ready', function() {
+  // Get contributor data
+  const dataElement = document.getElementById('wpt-contributor-data');
+  let contributorData = {};
+
+  if (dataElement) {
+    try {
+      contributorData = JSON.parse(dataElement.getAttribute('data-contributors'));
+    } catch (e) {
+      console.error('Error parsing contributor data:', e);
+    }
+  }
+
   // Wait a bit for highlighting to complete
-  setTimeout(createKeywordSidebar, 500);
+  setTimeout(() => createKeywordSidebar(contributorData), 500);
 });
