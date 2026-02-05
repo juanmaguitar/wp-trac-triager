@@ -127,25 +127,104 @@ function highlightContributors(wpTracContributorLabels) {
   });
 }
 
+// Helper: Create collapsible section with persistent state
+function createCollapsibleSection(sectionId, title, icon, defaultExpanded = true) {
+  const isExpanded = localStorage.getItem(`wpt-section-${sectionId}`) !== 'false';
+
+  const container = document.createElement('div');
+  container.id = `wpt-section-${sectionId}`;
+  container.style.cssText = `
+    margin-bottom: 16px;
+  `;
+
+  const header = document.createElement('div');
+  header.style.cssText = `
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    margin-bottom: 8px;
+    user-select: none;
+  `;
+
+  const titleDiv = document.createElement('div');
+  titleDiv.style.cssText = `
+    font-size: 13px;
+    font-weight: bold;
+    color: #333;
+  `;
+  titleDiv.textContent = `${icon} ${title}`;
+
+  const toggleIcon = document.createElement('span');
+  toggleIcon.textContent = isExpanded ? '▼' : '▶';
+  toggleIcon.style.cssText = `
+    font-size: 10px;
+    color: #666;
+    transition: transform 0.2s;
+  `;
+
+  header.appendChild(titleDiv);
+  header.appendChild(toggleIcon);
+
+  const contentWrapper = document.createElement('div');
+  contentWrapper.style.cssText = `
+    display: ${isExpanded ? 'block' : 'none'};
+    transition: all 0.2s ease-in-out;
+  `;
+
+  header.addEventListener('click', () => {
+    const isCurrentlyExpanded = contentWrapper.style.display !== 'none';
+    const newExpanded = !isCurrentlyExpanded;
+
+    contentWrapper.style.display = newExpanded ? 'block' : 'none';
+    toggleIcon.textContent = newExpanded ? '▼' : '▶';
+
+    localStorage.setItem(`wpt-section-${sectionId}`, newExpanded ? 'true' : 'false');
+  });
+
+  container.appendChild(header);
+  container.appendChild(contentWrapper);
+
+  return { container, contentWrapper };
+}
+
 // Helper: Get ticket summary information
 function getTicketSummary() {
   const summary = {};
 
-  // Ticket ID from URL or page title
+  // Ticket ID from page
   const ticketLink = document.querySelector('.trac-id');
   summary.id = ticketLink ? ticketLink.textContent.trim() : '';
 
-  // Reporter
-  const reporterElement = document.querySelector('#ticket td[headers="h_reporter"] a');
-  summary.reporter = reporterElement ? reporterElement.textContent.trim() : 'Unknown';
+  // Status - from span.trac-status
+  const statusElement = document.querySelector('.trac-status a');
+  summary.status = statusElement ? statusElement.textContent.trim() : '';
+  summary.statusUrl = statusElement ? statusElement.href : null;
 
-  // Owner
-  const ownerElement = document.querySelector('#ticket td[headers="h_owner"] a');
-  summary.owner = ownerElement ? ownerElement.textContent.trim() : 'Unowned';
+  // Type - from span.trac-type
+  const typeElement = document.querySelector('.trac-type a');
+  summary.type = typeElement ? typeElement.textContent.trim() : '';
 
-  // Milestone
+  // Reporter (with link) - use a.trac-author in the reporter cell
+  const reporterLink = document.querySelector('#ticket td[headers="h_reporter"] a.trac-author');
+  summary.reporter = reporterLink ? reporterLink.textContent.trim() : 'Unknown';
+  summary.reporterUrl = reporterLink ? reporterLink.href : null;
+
+  // Owner (with link) - check both link and plain text
+  const ownerElement = document.querySelector('#ticket td[headers="h_owner"]');
+  const ownerLink = ownerElement ? ownerElement.querySelector('a') : null;
+  const ownerText = ownerElement ? ownerElement.textContent.trim() : '';
+  summary.owner = ownerText || 'Unowned';
+  summary.ownerUrl = ownerLink ? ownerLink.href : null;
+
+  // Milestone (with link)
   const milestoneElement = document.querySelector('#ticket td[headers="h_milestone"]');
+  const milestoneLink = milestoneElement ? milestoneElement.querySelector('a') : null;
   summary.milestone = milestoneElement ? milestoneElement.textContent.trim() : '';
+  summary.milestoneUrl = milestoneLink ? milestoneLink.href : null;
 
   // Priority
   const priorityElement = document.querySelector('#ticket td[headers="h_priority"]');
@@ -155,11 +234,13 @@ function getTicketSummary() {
   const severityElement = document.querySelector('#ticket td[headers="h_severity"]');
   summary.severity = severityElement ? severityElement.textContent.trim() : '';
 
-  // Component
+  // Component (with link)
   const componentElement = document.querySelector('#ticket td[headers="h_component"]');
+  const componentLink = componentElement ? componentElement.querySelector('a') : null;
   summary.component = componentElement ? componentElement.textContent.trim() : '';
+  summary.componentUrl = componentLink ? componentLink.href : null;
 
-  // Keywords
+  // Keywords (will be split into individual links later)
   const keywordsElement = document.querySelector('#ticket td[headers="h_keywords"]');
   summary.keywords = keywordsElement ? keywordsElement.textContent.trim() : '';
 
@@ -175,6 +256,7 @@ function getTicketSummary() {
     summary.lastModified = modifiedMatch ? modifiedMatch[1].trim() : '';
   }
 
+  debug('Ticket summary extracted:', summary);
   return summary;
 }
 
@@ -608,111 +690,140 @@ function createKeywordSidebar(contributorData = {}) {
 
   // Add ticket summary section (sticky at top)
   const ticketSummary = getTicketSummary();
+  const summarySection = createCollapsibleSection('quick-info', `${ticketSummary.id} Quick Info`, '', true);
+  summarySection.container.style.cssText = `
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: white;
+    margin-bottom: 16px;
+  `;
+
   const summaryBox = document.createElement('div');
   summaryBox.style.cssText = `
-    margin-bottom: 16px;
     padding: 12px;
     background: #f8f9fa;
     border: 1px solid #dee2e6;
     border-radius: 4px;
-    position: sticky;
-    top: 0;
-    z-index: 10;
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
   `;
 
-  const summaryTitle = document.createElement('div');
-  summaryTitle.style.cssText = `
-    font-size: 14px;
-    font-weight: bold;
-    color: #212529;
-    margin-bottom: 8px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #dee2e6;
-  `;
-  summaryTitle.innerHTML = `${ticketSummary.id} <span style="font-weight: normal; color: #6c757d;">Quick Info</span>`;
-  summaryBox.appendChild(summaryTitle);
-
   // Create summary grid
   const summaryItems = [
-    { label: 'Reporter', value: ticketSummary.reporter },
-    { label: 'Owner', value: ticketSummary.owner || 'Unowned' },
+    { label: 'Status', value: ticketSummary.status || 'Unknown', required: true },
+    { label: 'Reporter', value: ticketSummary.reporter || 'Unknown', url: ticketSummary.reporterUrl, required: true },
+    { label: 'Owner', value: ticketSummary.owner || 'Unowned', url: ticketSummary.ownerUrl },
     { label: 'Opened', value: ticketSummary.opened },
     { label: 'Modified', value: ticketSummary.lastModified },
-    { label: 'Milestone', value: ticketSummary.milestone },
+    { label: 'Milestone', value: ticketSummary.milestone, url: ticketSummary.milestoneUrl },
     { label: 'Priority', value: ticketSummary.priority },
     { label: 'Severity', value: ticketSummary.severity },
-    { label: 'Component', value: ticketSummary.component },
-    { label: 'Keywords', value: ticketSummary.keywords || 'None' }
+    { label: 'Component', value: ticketSummary.component, url: ticketSummary.componentUrl },
+    { label: 'Keywords', value: ticketSummary.keywords || 'None', isKeywords: true }
   ];
 
+  debug('Summary items to display:', summaryItems);
+
   summaryItems.forEach(item => {
-    if (item.value) {
+    // Show required fields even if empty, or if value exists
+    if (item.required || item.value) {
       const itemDiv = document.createElement('div');
       itemDiv.style.cssText = `
         font-size: 11px;
         margin-bottom: 4px;
         display: flex;
         justify-content: space-between;
-        ${item.label === 'Keywords' ? 'align-items: flex-start;' : ''}
+        ${item.isKeywords ? 'align-items: flex-start;' : ''}
       `;
 
       const labelSpan = document.createElement('span');
       labelSpan.style.cssText = `
         color: #6c757d;
         font-weight: 500;
-        ${item.label === 'Keywords' ? 'padding-top: 1px;' : ''}
+        ${item.isKeywords ? 'padding-top: 1px;' : ''}
       `;
       labelSpan.textContent = item.label + ':';
 
-      const valueSpan = document.createElement('span');
-      // Allow keywords to wrap, keep others on single line
-      const wrapStyle = item.label === 'Keywords'
+      const valueContainer = document.createElement('span');
+      const wrapStyle = item.isKeywords
         ? 'word-break: break-word;'
         : 'overflow: hidden; text-overflow: ellipsis; white-space: nowrap;';
 
-      valueSpan.style.cssText = `
+      valueContainer.style.cssText = `
         color: #212529;
         font-weight: 600;
         text-align: right;
         max-width: 60%;
         ${wrapStyle}
       `;
-      valueSpan.textContent = item.value;
-      if (item.label !== 'Keywords') {
-        valueSpan.title = item.value; // Show full value on hover for truncated items
+
+      // Handle keywords as individual links
+      if (item.isKeywords && item.value !== 'None') {
+        const keywords = item.value.split(/\s+/).filter(k => k.length > 0);
+        keywords.forEach((keyword, idx) => {
+          const keywordLink = document.createElement('a');
+          keywordLink.href = `https://core.trac.wordpress.org/query?keywords=~${keyword}`;
+          keywordLink.textContent = keyword;
+          keywordLink.target = '_blank';
+          keywordLink.style.cssText = `
+            color: #2271b1;
+            text-decoration: none;
+            font-weight: 600;
+          `;
+          keywordLink.onmouseover = () => keywordLink.style.textDecoration = 'underline';
+          keywordLink.onmouseout = () => keywordLink.style.textDecoration = 'none';
+
+          valueContainer.appendChild(keywordLink);
+          if (idx < keywords.length - 1) {
+            valueContainer.appendChild(document.createTextNode(' '));
+          }
+        });
+      }
+      // Handle linked values (reporter, owner, component, milestone)
+      else if (item.url) {
+        const link = document.createElement('a');
+        link.href = item.url;
+        link.textContent = item.value;
+        link.target = '_blank';
+        link.style.cssText = `
+          color: #2271b1;
+          text-decoration: none;
+          font-weight: 600;
+        `;
+        link.onmouseover = () => link.style.textDecoration = 'underline';
+        link.onmouseout = () => link.style.textDecoration = 'none';
+        valueContainer.appendChild(link);
+      }
+      // Plain text values
+      else {
+        valueContainer.textContent = item.value;
+        if (!item.isKeywords) {
+          valueContainer.title = item.value;
+        }
       }
 
       itemDiv.appendChild(labelSpan);
-      itemDiv.appendChild(valueSpan);
+      itemDiv.appendChild(valueContainer);
       summaryBox.appendChild(itemDiv);
     }
   });
 
-  content.appendChild(summaryBox);
+  summarySection.contentWrapper.appendChild(summaryBox);
+  content.appendChild(summarySection.container);
 
   // Add recent comments section
   const recentComments = getRecentComments(3, contributorData);
   debug('Recent comments found:', recentComments.length);
   if (recentComments.length > 0) {
+    const commentsSection = createCollapsibleSection('recent-comments', 'Recent Comments', '💬', true);
+
     const recentCommentsBox = document.createElement('div');
     recentCommentsBox.style.cssText = `
-      margin-bottom: 16px;
       padding: 12px;
       background: #f0f6fc;
       border-left: 3px solid #0969da;
       border-radius: 4px;
     `;
-
-    const commentsLabel = document.createElement('div');
-    commentsLabel.style.cssText = `
-      font-size: 13px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 8px;
-    `;
-    commentsLabel.textContent = '💬 Recent Comments';
-    recentCommentsBox.appendChild(commentsLabel);
 
     // Add each comment
     recentComments.forEach((comment, index) => {
@@ -768,7 +879,8 @@ function createKeywordSidebar(contributorData = {}) {
       recentCommentsBox.appendChild(commentItem);
     });
 
-    content.appendChild(recentCommentsBox);
+    commentsSection.contentWrapper.appendChild(recentCommentsBox);
+    content.appendChild(commentsSection.container);
     debug('Recent comments section added to content');
   }
 
@@ -776,24 +888,15 @@ function createKeywordSidebar(contributorData = {}) {
   const maintainerInfo = getComponentMaintainerInfo();
   debug('Maintainer info:', maintainerInfo ? maintainerInfo.component : 'none');
   if (maintainerInfo) {
+    const maintainerSection = createCollapsibleSection('maintainers', 'Component Maintainers', '🔧', true);
+
     const maintainerBox = document.createElement('div');
     maintainerBox.style.cssText = `
-      margin-bottom: 16px;
       padding: 12px;
       background: #fff8e6;
       border-left: 3px solid #f59e0b;
       border-radius: 4px;
     `;
-
-    const maintainerLabel = document.createElement('div');
-    maintainerLabel.style.cssText = `
-      font-size: 13px;
-      font-weight: bold;
-      color: #333;
-      margin-bottom: 8px;
-    `;
-    maintainerLabel.textContent = '🔧 Component Maintainers';
-    maintainerBox.appendChild(maintainerLabel);
 
     // Add context description
     const contextDesc = document.createElement('div');
@@ -879,25 +982,13 @@ function createKeywordSidebar(contributorData = {}) {
     componentsLink.appendChild(link);
     maintainerBox.appendChild(componentsLink);
 
-    content.appendChild(maintainerBox);
+    maintainerSection.contentWrapper.appendChild(maintainerBox);
+    content.appendChild(maintainerSection.container);
     debug('Maintainer section added to content');
   }
 
   // Add Keywords section header and context
-  const keywordsHeader = document.createElement('div');
-  keywordsHeader.style.cssText = `
-    margin-bottom: 12px;
-  `;
-
-  const keywordsTitle = document.createElement('div');
-  keywordsTitle.style.cssText = `
-    font-size: 13px;
-    font-weight: bold;
-    color: #333;
-    margin-bottom: 8px;
-  `;
-  keywordsTitle.textContent = '🏷️ TRAC Keywords';
-  keywordsHeader.appendChild(keywordsTitle);
+  const keywordsSection = createCollapsibleSection('keywords', 'TRAC Keywords', '🏷️', true);
 
   const keywordsContext = document.createElement('div');
   keywordsContext.style.cssText = `
@@ -913,9 +1004,7 @@ function createKeywordSidebar(contributorData = {}) {
     keywordsContext.innerHTML = `This ticket has <strong>no keywords</strong> assigned yet. Keywords help categorize and track the status of tickets.`;
   }
 
-  keywordsHeader.appendChild(keywordsContext);
-
-  content.appendChild(keywordsHeader);
+  keywordsSection.contentWrapper.appendChild(keywordsContext);
 
   // Show message if no keywords, otherwise list them
   if (keywords.length === 0) {
@@ -930,7 +1019,7 @@ function createKeywordSidebar(contributorData = {}) {
       color: #856404;
     `;
     noKeywordsMsg.innerHTML = `<strong>ℹ️ No keywords found.</strong><br>Consider adding relevant keywords to help with triage and categorization.`;
-    content.appendChild(noKeywordsMsg);
+    keywordsSection.contentWrapper.appendChild(noKeywordsMsg);
   }
 
   // Add each keyword
@@ -1021,9 +1110,12 @@ function createKeywordSidebar(contributorData = {}) {
         item.appendChild(historyDiv);
       }
 
-      content.appendChild(item);
+      keywordsSection.contentWrapper.appendChild(item);
     }
   });
+
+  // Append keywords section to content
+  content.appendChild(keywordsSection.container);
 
   // Append content to sidebar, then sidebar and toggle button to body
   sidebar.appendChild(content);
