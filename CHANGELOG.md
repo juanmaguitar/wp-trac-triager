@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-05
+
+### Changed
+- **UI Improvement**: Sidebar is now integrated into the page layout instead of floating over content. The sidebar uses `position: sticky` and adjusts the main content width, similar to Brave's Leo AI sidebar. This prevents the sidebar from covering ticket content when resizing the browser window.
+- Removed drag-and-drop functionality (no longer needed with integrated layout)
+- Sidebar width increased to 320px for better readability
+
 ## [1.0.1] - 2026-02-05
 
 ### Fixed

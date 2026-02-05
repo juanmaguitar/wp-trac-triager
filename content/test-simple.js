@@ -400,38 +400,102 @@ function createKeywordSidebar(contributorData = {}) {
   sidebar.id = 'wpt-keyword-sidebar';
   debug('Sidebar element created');
 
-  // Load saved position or use defaults
-  const savedPosition = localStorage.getItem('wpt-sidebar-position');
-  let sidebarPos = { right: '20px', top: '100px', left: 'auto', bottom: 'auto' };
-  if (savedPosition) {
-    sidebarPos = JSON.parse(savedPosition);
-  }
-
+  // Integrated sidebar styling (fixed to right edge, content adjusts to not overlap)
   sidebar.style.cssText = `
     position: fixed;
-    right: ${sidebarPos.right};
-    top: ${sidebarPos.top};
-    left: ${sidebarPos.left};
-    bottom: ${sidebarPos.bottom};
-    width: 300px;
+    top: 80px;
+    right: 0;
+    width: 340px;
+    height: calc(100vh - 80px);
     background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    border-left: 1px solid #ddd;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.1);
     padding: 16px;
-    max-height: 80vh;
     overflow-y: auto;
-    z-index: 9999;
+    z-index: 1000;
+    transition: transform 0.3s ease-in-out;
+    transform: translateX(0);
   `;
 
-  // Header (acts as drag handle)
+  // Create toggle button that appears when sidebar is hidden
+  const sidebarToggleBtn = document.createElement('button');
+  sidebarToggleBtn.id = 'wpt-sidebar-toggle';
+  sidebarToggleBtn.innerHTML = '◀'; // Left arrow
+  sidebarToggleBtn.style.cssText = `
+    position: fixed;
+    top: 50%;
+    right: 0;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 80px;
+    background: white;
+    border: 1px solid #ddd;
+    border-right: none;
+    border-radius: 8px 0 0 8px;
+    box-shadow: -2px 0 8px rgba(0,0,0,0.1);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: #666;
+    z-index: 1001;
+    transition: background 0.2s;
+  `;
+  sidebarToggleBtn.onmouseover = () => {
+    sidebarToggleBtn.style.background = '#f0f0f0';
+  };
+  sidebarToggleBtn.onmouseout = () => {
+    sidebarToggleBtn.style.background = 'white';
+  };
+
+  // Adjust main content to make room for sidebar
+  const mainContent = document.querySelector('#main') || document.querySelector('#content') || document.querySelector('body');
+
+  // Function to toggle sidebar visibility
+  function toggleSidebarVisibility(show) {
+    if (show) {
+      sidebar.style.transform = 'translateX(0)';
+      sidebarToggleBtn.style.display = 'none';
+      if (mainContent) {
+        mainContent.style.marginRight = '340px';
+        mainContent.style.transition = 'margin-right 0.3s ease-in-out';
+      }
+    } else {
+      sidebar.style.transform = 'translateX(100%)';
+      sidebarToggleBtn.style.display = 'flex';
+      if (mainContent) {
+        mainContent.style.marginRight = '0';
+        mainContent.style.transition = 'margin-right 0.3s ease-in-out';
+      }
+    }
+    // Save state
+    localStorage.setItem('wpt-sidebar-visible', show ? 'true' : 'false');
+  }
+
+  // Check saved visibility state
+  const savedVisible = localStorage.getItem('wpt-sidebar-visible');
+  const isVisible = savedVisible !== 'false'; // default to visible
+
+  if (mainContent) {
+    mainContent.style.marginRight = isVisible ? '340px' : '0';
+    debug('Main content adjusted, marginRight:', mainContent.style.marginRight);
+  } else {
+    debug('WARNING: Could not find main content element');
+  }
+
+  // Initialize visibility
+  if (!isVisible) {
+    toggleSidebarVisibility(false);
+  }
+
+  // Header
   const header = document.createElement('div');
   header.style.cssText = `
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin: 0 0 12px 0;
-    cursor: grab;
     user-select: none;
   `;
 
@@ -445,7 +509,8 @@ function createKeywordSidebar(contributorData = {}) {
   `;
 
   const toggleBtn = document.createElement('button');
-  toggleBtn.textContent = '−';
+  toggleBtn.innerHTML = '▶'; // Right arrow to indicate hiding to the right
+  toggleBtn.title = 'Hide sidebar';
   toggleBtn.style.cssText = `
     background: none;
     border: 1px solid #ddd;
@@ -453,7 +518,7 @@ function createKeywordSidebar(contributorData = {}) {
     width: 24px;
     height: 24px;
     cursor: pointer;
-    font-size: 18px;
+    font-size: 14px;
     line-height: 1;
     color: #666;
     padding: 0;
@@ -471,101 +536,23 @@ function createKeywordSidebar(contributorData = {}) {
   header.appendChild(headerTitle);
   header.appendChild(toggleBtn);
 
-  // Make sidebar draggable
-  let isDragging = false;
-  let currentX;
-  let currentY;
-  let initialX;
-  let initialY;
-
-  header.addEventListener('mousedown', (e) => {
-    isDragging = true;
-    header.style.cursor = 'grabbing';
-
-    // Get initial mouse position
-    initialX = e.clientX;
-    initialY = e.clientY;
-
-    // Get current sidebar position
-    const rect = sidebar.getBoundingClientRect();
-    currentX = rect.left;
-    currentY = rect.top;
-
-    e.preventDefault();
-  });
-
-  document.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-
-    e.preventDefault();
-
-    // Calculate new position
-    const deltaX = e.clientX - initialX;
-    const deltaY = e.clientY - initialY;
-
-    const newX = currentX + deltaX;
-    const newY = currentY + deltaY;
-
-    // Update sidebar position
-    sidebar.style.left = newX + 'px';
-    sidebar.style.top = newY + 'px';
-    sidebar.style.right = 'auto';
-    sidebar.style.bottom = 'auto';
-  });
-
-  document.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      header.style.cursor = 'grab';
-
-      // Save position to localStorage
-      const position = {
-        left: sidebar.style.left,
-        top: sidebar.style.top,
-        right: 'auto',
-        bottom: 'auto'
-      };
-      localStorage.setItem('wpt-sidebar-position', JSON.stringify(position));
-    }
-  });
-
   sidebar.appendChild(header);
 
-  // Content wrapper (everything that can be collapsed)
+  // Content wrapper
   const content = document.createElement('div');
   content.id = 'wpt-sidebar-content';
   content.style.cssText = `
     display: block;
   `;
 
-  // Toggle collapse/expand functionality
-  const savedCollapsed = localStorage.getItem('wpt-sidebar-collapsed');
-  let isCollapsed = savedCollapsed === 'true';
-
-  if (isCollapsed) {
-    content.style.display = 'none';
-    toggleBtn.textContent = '+';
-  }
-
-  // Prevent dragging when interacting with toggle button
-  toggleBtn.addEventListener('mousedown', (e) => {
-    e.stopPropagation();
+  // Toggle button in header hides entire sidebar
+  toggleBtn.addEventListener('click', (e) => {
+    toggleSidebarVisibility(false);
   });
 
-  toggleBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    isCollapsed = !isCollapsed;
-
-    if (isCollapsed) {
-      content.style.display = 'none';
-      toggleBtn.textContent = '+';
-    } else {
-      content.style.display = 'block';
-      toggleBtn.textContent = '−';
-    }
-
-    // Save state
-    localStorage.setItem('wpt-sidebar-collapsed', isCollapsed);
+  // External toggle button shows sidebar
+  sidebarToggleBtn.addEventListener('click', (e) => {
+    toggleSidebarVisibility(true);
   });
 
   // Add recent comments section
@@ -694,7 +681,7 @@ function createKeywordSidebar(contributorData = {}) {
       const maintainerLink = document.createElement('a');
       maintainerLink.href = maintainer.profileUrl;
       maintainerLink.target = '_blank';
-      maintainerLink.textContent = maintainer.displayName;
+      maintainerLink.textContent = `${maintainer.displayName} (@${maintainer.username})`;
       maintainerLink.style.cssText = `
         font-weight: bold;
         color: #d97706;
@@ -711,7 +698,7 @@ function createKeywordSidebar(contributorData = {}) {
         roleSpan.style.cssText = `
           font-size: 11px;
           color: #666;
-          margin-left: 6px;
+          margin-left: 4px;
         `;
         roleSpan.textContent = `(${maintainer.role})`;
         maintainerItem.appendChild(roleSpan);
@@ -902,11 +889,12 @@ function createKeywordSidebar(contributorData = {}) {
     }
   });
 
-  // Append content to sidebar, then sidebar to body
+  // Append content to sidebar, then sidebar and toggle button to body
   sidebar.appendChild(content);
   debug('About to append sidebar to body. Sidebar HTML length:', sidebar.innerHTML.length);
   document.body.appendChild(sidebar);
-  debug('Sidebar appended to body successfully!');
+  document.body.appendChild(sidebarToggleBtn);
+  debug('Sidebar and toggle button appended to body successfully!');
 }
 
 // Start the process
