@@ -538,8 +538,28 @@ function extractKeywordHistory() {
             }
           }
 
+          // Extract author - need to get just the username, excluding our badge elements
           const authorElement = change.querySelector('.trac-author');
-          const author = authorElement ? authorElement.textContent.trim() : 'unknown';
+          let author = 'unknown';
+
+          if (authorElement) {
+            // Try to get username from the .username span first
+            const usernameSpan = authorElement.querySelector('.username');
+            if (usernameSpan) {
+              author = usernameSpan.textContent.trim();
+            } else {
+              // Clone the element and remove our badges to get clean text
+              const cleanAuthor = authorElement.cloneNode(true);
+              // Remove our role badges and GitHub badges
+              const badges = cleanAuthor.querySelectorAll('.wpt-role-badge, .wpt-github-badge');
+              badges.forEach(badge => badge.remove());
+
+              // Get the clean text and strip any remaining role labels
+              const fullText = cleanAuthor.textContent.trim();
+              // Remove common role labels that might be in Trac's markup
+              author = fullText.replace(/\s*(Core Committer|Lead Developer|Emeritus Committer|Component Maintainer|Lead Tester|Themes Committer|Project Lead|Individual Contributor).*$/, '');
+            }
+          }
 
           keywords.forEach(kw => {
             if (action === 'added') {
@@ -617,7 +637,7 @@ function analyzeKeywordValidation() {
         const author = change.author;
         const recentPatches = findPatchesByAuthor(author);
         if (recentPatches.length > 0) {
-          const authorRole = wpTracContributorLabels[author] || 'Regular User';
+          const authorRole = wpTracContributorLabels[author] || 'Individual Contributor';
           validationIssues.push({
             ruleId: 'self-applied-needs-testing',
             type: rule1.type,
@@ -664,7 +684,7 @@ function analyzeKeywordValidation() {
     for (const [keyword, change] of Object.entries(keywordHistory)) {
       if (rule3.keywords[keyword]) {
         const author = change.author;
-        const authorRole = wpTracContributorLabels[author] || 'Regular User';
+        const authorRole = wpTracContributorLabels[author] || 'Individual Contributor';
         const authorRank = ROLE_HIERARCHY[authorRole] || 5;
 
         const restriction = rule3.keywords[keyword];
@@ -767,11 +787,11 @@ function extractMilestoneHistory() {
         // Get the clean text and strip any remaining role labels
         const fullText = cleanAuthor.textContent.trim();
         // Remove common role labels that might be in Trac's markup
-        author = fullText.replace(/\s*(Core Committer|Lead Developer|Emeritus Committer|Component Maintainer|Lead Tester|Themes Committer|Project Lead|Regular User).*$/, '');
+        author = fullText.replace(/\s*(Core Committer|Lead Developer|Emeritus Committer|Component Maintainer|Lead Tester|Themes Committer|Project Lead|Individual Contributor).*$/, '');
       }
     }
 
-    const authorRole = wpTracContributorLabels[author] || 'Regular User';
+    const authorRole = wpTracContributorLabels[author] || 'Individual Contributor';
 
     // Extract relative time - check multiple locations
     let relativeTime = 'unknown';
@@ -834,9 +854,33 @@ function getRoleColor(role) {
     'Component Maintainer': '#009688',
     'Lead Tester': '#e91e63',
     'Themes Committer': '#00bcd4',
-    'Regular User': '#757575'
+    'Individual Contributor': '#757575'
   };
   return colors[role] || '#757575';
+}
+
+// Helper: Format milestone as link if it's a WordPress version
+function formatMilestoneWithLink(milestone, isFromMilestone = false) {
+  if (!milestone || milestone === '(none)') {
+    return isFromMilestone
+      ? '<em style="color: #999;">none</em>'
+      : '<em style="color: #999;">none</em>';
+  }
+
+  // Check if milestone matches WordPress version pattern (e.g., "6.9", "7.0", "6.8.1")
+  const versionPattern = /^(\d+\.\d+(?:\.\d+)?)$/;
+  const match = milestone.match(versionPattern);
+
+  if (match) {
+    const version = match[1];
+    const url = `https://make.wordpress.org/core/${version}/`;
+    const color = isFromMilestone ? '#666' : '#4CAF50';
+    return `<a href="${url}" target="_blank" style="color: ${color}; text-decoration: none; font-weight: bold; border-bottom: 1px dotted ${color};" onmouseover="this.style.borderBottom='1px solid ${color}'" onmouseout="this.style.borderBottom='1px dotted ${color}'" title="View WordPress ${version} release details">${milestone}</a>`;
+  }
+
+  // Not a version number, return as plain text
+  const color = isFromMilestone ? '#666' : '#4CAF50';
+  return `<strong style="color: ${color};">${milestone}</strong>`;
 }
 
 // Helper: Add authority legend to sidebar
@@ -1677,14 +1721,17 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
 
         let milestoneText = '';
         if (change.from) {
-          const fromDisplay = change.from === '(none)' ? '<em style="color: #999;">none</em>' : `<strong>${change.from}</strong>`;
-          const toDisplay = change.to === '(none)' ? '<em style="color: #999;">none</em>' : `<strong style="color: #4CAF50;">${change.to}</strong>`;
+          // "from X to Y" format - use helper to create links for version numbers
+          const fromDisplay = formatMilestoneWithLink(change.from, true);
+          const toDisplay = formatMilestoneWithLink(change.to, false);
           milestoneText = `${fromDisplay} → ${toDisplay}`;
         } else {
+          // "Set to X" format
           if (change.to === '(none)') {
             milestoneText = `<span style="color: #999;">Milestone removed</span>`;
           } else {
-            milestoneText = `Set to <strong style="color: #4CAF50;">${change.to}</strong>`;
+            const toDisplay = formatMilestoneWithLink(change.to, false);
+            milestoneText = `Set to ${toDisplay}`;
           }
         }
 

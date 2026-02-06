@@ -81,7 +81,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Smart Recommendations**: Provides specific guidance on how to fix validation issues
 
 #### Feature 2: Enhanced Authority/Role Badges
-- **Universal Role Badges**: ALL commenters now receive role badges, including "Regular User" for non-core contributors
+- **Universal Role Badges**: ALL commenters now receive role badges, including "Individual Contributor" for non-core contributors
 - **GitHub Sync Detection**: Automatically detects and badges comments synced from GitHub Pull Requests with "🔗 GitHub PR" indicator
 - **Authority Legend**: New collapsible sidebar section showing role distribution across all comments
 - **Visual Hierarchy**: Improved color-coded system reflecting authority levels
