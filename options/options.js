@@ -4,11 +4,7 @@ const defaultConfig = {
   highlightComments: true,
   showKeywordSidebar: true,
   showMaintainerInfo: true,
-  targetWpVersion: '7.0',
-  customUsers: {
-    coreCommitters: [],
-    leadTesters: []
-  }
+  targetWpVersion: '7.0'
 };
 
 // Load saved settings
@@ -23,14 +19,6 @@ function loadSettings() {
 
     // Set target WordPress version
     document.getElementById('targetWpVersion').value = config.targetWpVersion || '7.0';
-
-    // Set custom user lists
-    if (config.customUsers) {
-      document.getElementById('customCoreCommitters').value =
-        (config.customUsers.coreCommitters || []).join('\n');
-      document.getElementById('customLeadTesters').value =
-        (config.customUsers.leadTesters || []).join('\n');
-    }
   });
 }
 
@@ -40,28 +28,12 @@ function saveSettings() {
     highlightComments: document.getElementById('highlightComments').checked,
     showKeywordSidebar: document.getElementById('showKeywordSidebar').checked,
     showMaintainerInfo: document.getElementById('showMaintainerInfo').checked,
-    targetWpVersion: document.getElementById('targetWpVersion').value,
-    customUsers: {
-      coreCommitters: parseUserList(document.getElementById('customCoreCommitters').value),
-      leadTesters: parseUserList(document.getElementById('customLeadTesters').value)
-    }
+    targetWpVersion: document.getElementById('targetWpVersion').value
   };
 
   chrome.storage.sync.set({ config: config }, function() {
     showStatusMessage('Settings saved successfully!', 'success');
   });
-}
-
-// Parse user list from textarea with validation
-function parseUserList(text) {
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .filter(line => {
-      // Validate username format (alphanumeric, hyphens, underscores only)
-      return /^[a-zA-Z0-9_-]+$/.test(line);
-    });
 }
 
 // Reset to defaults

@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-06
+
+### Added - Phase 1A Features
+
+#### Feature 1: Keyword Validation Panel
+- **Self-Applied Testing Detection**: Automatically flags when patch authors add "needs-testing" themselves (training shows 80% of these are inadequate)
+- **Redundant Keyword Detection**: Identifies redundant keyword pairs (e.g., "2nd-opinion" + "needs-review")
+- **Authority Mismatch Warnings**: Alerts when users add keywords that should be restricted to higher authority levels
+- **Severity-Based Display**: Color-coded warnings (High=red, Medium=orange, Low=blue) with actionable recommendations
+- **Smart Recommendations**: Provides specific guidance on how to fix validation issues
+
+#### Feature 2: Enhanced Authority/Role Badges
+- **Universal Role Badges**: ALL commenters now receive role badges, including "Regular User" for non-core contributors
+- **GitHub Sync Detection**: Automatically detects and badges comments synced from GitHub Pull Requests with "🔗 GitHub PR" indicator
+- **Authority Legend**: New collapsible sidebar section showing role distribution across all comments
+- **Visual Hierarchy**: Improved color-coded system reflecting authority levels
+- **Statistics**: Displays comment count per role for quick triage context
+
+#### Feature 3: Milestone History Timeline
+- **Visual Timeline**: Beautiful vertical timeline showing complete milestone change history
+- **Detailed Change Information**: Each change shows from/to milestone, author, role, and relative time
+- **Punt Detection**: Automatically flags tickets that have been punted 2+ times with explanatory warning
+- **Direct Navigation**: Click-through links to view the exact comments where milestones were changed
+- **Progress Tracking**: Easily see if a ticket is progressing or stalled based on milestone history
+
+### Technical
+- Added `data/keyword-equivalencies.js` with keyword redundancy rules and authority restrictions
+- Added `data/role-hierarchy.js` with authority hierarchy definitions and role colors
+- Added 6 new utility functions:
+  - `findPatchesByAuthor()` - Detects patch uploads by specific authors
+  - `analyzeKeywordValidation()` - Validates keywords against training-based patterns
+  - `extractMilestoneHistory()` - Parses complete milestone change history from DOM
+  - `getRoleColor()` - Provides consistent role color mapping
+  - `addAuthorityLegend()` - Creates collapsible authority reference section
+  - Enhanced `highlightContributors()` to badge ALL users and detect GitHub sync
+  - Enhanced `createKeywordSidebar()` to integrate new validation and timeline sections
+
+### Training-Based Improvements
+All Phase 1A features are based on WordPress Test Team training materials:
+- 2026-02-03: Ticket Triaging and Keywords
+- 2026-01-29: Testing and Handbook Coordination
+- 2026-01-27: Core Testing Challenges
+
 ## [1.2.0] - 2026-02-05
 
 ### Added

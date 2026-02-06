@@ -59,72 +59,110 @@ function highlightContributors(wpTracContributorLabels) {
     'default': { border: '#607D8B', bg: '#ECEFF1', badge: '#607D8B' } // Gray
   };
 
+  const roleStats = {};
   let highlightedCount = 0;
 
   comments.forEach(comment => {
     const authorLink = comment.querySelector('.trac-author');
-    if (authorLink) {
-      const username = authorLink.textContent.trim();
+    if (!authorLink) return;
 
-      if (wpTracContributorLabels[username]) {
-        const role = wpTracContributorLabels[username];
-        const colors = roleColors[role] || roleColors['default'];
+    const username = authorLink.textContent.trim();
 
-        // Add visual highlight - ONLY to the parent div.change, not h3.change
-        comment.style.borderLeft = `4px solid ${colors.border}`;
-        comment.style.backgroundColor = colors.bg;
-        comment.style.paddingLeft = '12px'; // Extra space to prevent avatar overlap
+    // Only highlight and badge core team members
+    if (!wpTracContributorLabels[username]) return;
 
-        // Remove duplicate styles from h3.change, but keep avatar spacing
-        const h3 = comment.querySelector('h3.change');
-        if (h3) {
-          h3.style.borderLeft = 'none';
-          h3.style.backgroundColor = 'transparent';
-          h3.style.paddingLeft = '8px'; // Extra padding for avatar breathing room
-        }
+    const role = wpTracContributorLabels[username];
+    const colors = roleColors[role] || roleColors['default'];
 
-        // Find and hide/replace Trac's original .contributor-label badge
-        const authorContainer = authorLink.closest('.username-line') || authorLink.parentElement;
-        const tracBadge = authorContainer.querySelector('.contributor-label');
-        if (tracBadge) {
-          // Hide Trac's badge since we'll show our colored one
-          tracBadge.style.display = 'none';
-        }
+    // Count role appearances for legend (core team only)
+    roleStats[role] = (roleStats[role] || 0) + 1;
 
-        // Check if our badge already exists
-        let ourBadge = authorContainer.querySelector('.wpt-role-badge');
+    // Check if this is a GitHub-synced comment
+    const header = comment.querySelector('h3.change');
+    const isGitHubSynced = header && (
+      header.classList.contains('chat-bot') ||
+      header.classList.contains('prbot')
+    );
 
-        if (!ourBadge) {
-          // Create our colored badge
-          ourBadge = document.createElement('span');
-          ourBadge.className = 'wpt-role-badge';
-          ourBadge.textContent = role;
+    // Add visual highlight - ONLY to the parent div.change, not h3.change
+    comment.style.borderLeft = `4px solid ${colors.border}`;
+    comment.style.backgroundColor = colors.bg;
+    comment.style.paddingLeft = '12px'; // Extra space to prevent avatar overlap
 
-          // Insert after the username span
-          const usernameSpan = authorLink.querySelector('.username');
-          if (usernameSpan) {
-            usernameSpan.parentElement.insertBefore(ourBadge, usernameSpan.nextSibling);
-          } else {
-            authorLink.appendChild(ourBadge);
-          }
-        }
+    // Remove duplicate styles from h3.change, but keep avatar spacing
+    const h3 = comment.querySelector('h3.change');
+    if (h3) {
+      h3.style.borderLeft = 'none';
+      h3.style.backgroundColor = 'transparent';
+      h3.style.paddingLeft = '8px'; // Extra padding for avatar breathing room
+    }
 
-        // Style our badge with role-specific color
-        ourBadge.style.cssText = `
-          display: inline-block;
-          background: ${colors.badge};
-          color: white;
-          padding: 2px 8px;
-          border-radius: 3px;
-          font-size: 11px;
-          font-weight: bold;
-          margin-left: 8px;
-        `;
+    // Find and hide/replace Trac's original .contributor-label badge
+    const authorContainer = authorLink.closest('.username-line') || authorLink.parentElement;
+    const tracBadge = authorContainer.querySelector('.contributor-label');
+    if (tracBadge) {
+      // Hide Trac's badge since we'll show our colored one
+      tracBadge.style.display = 'none';
+    }
 
-        highlightedCount++;
+    // Check if our badge already exists
+    let ourBadge = authorContainer.querySelector('.wpt-role-badge');
+
+    if (!ourBadge) {
+      // Create our colored badge
+      ourBadge = document.createElement('span');
+      ourBadge.className = 'wpt-role-badge';
+      ourBadge.textContent = role;
+
+      // Insert after the username span
+      const usernameSpan = authorLink.querySelector('.username');
+      if (usernameSpan) {
+        usernameSpan.parentElement.insertBefore(ourBadge, usernameSpan.nextSibling);
+      } else {
+        authorLink.appendChild(ourBadge);
       }
     }
+
+    // Style our badge with role-specific color
+    ourBadge.style.cssText = `
+      display: inline-block;
+      background: ${colors.badge};
+      color: white;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: bold;
+      margin-left: 8px;
+    `;
+
+    // Add GitHub sync indicator if applicable
+    if (isGitHubSynced) {
+      let syncBadge = authorContainer.querySelector('.wpt-github-badge');
+      if (!syncBadge) {
+        syncBadge = document.createElement('span');
+        syncBadge.className = 'wpt-github-badge';
+        syncBadge.innerHTML = '🔗 GitHub PR';
+        syncBadge.style.cssText = `
+          display: inline-block;
+          background: #24292e;
+          color: white;
+          padding: 2px 6px;
+          border-radius: 3px;
+          font-size: 10px;
+          margin-left: 4px;
+          font-weight: bold;
+        `;
+        ourBadge.parentNode.insertBefore(syncBadge, ourBadge.nextSibling);
+      }
+    }
+
+    highlightedCount++;
   });
+
+  // Add authority legend to sidebar (core team only)
+  if (Object.keys(roleStats).length > 0) {
+    setTimeout(() => addAuthorityLegend(roleStats), 100);
+  }
 }
 
 // Helper: Create collapsible section with persistent state
@@ -498,6 +536,349 @@ function extractKeywordHistory() {
   });
 
   return history;
+}
+
+// Helper: Find patches uploaded by a specific author
+function findPatchesByAuthor(author) {
+  const attachments = document.querySelectorAll('#attachments .attachment');
+  const patches = [];
+
+  attachments.forEach(attachment => {
+    const authorElement = attachment.querySelector('.trac-author');
+    if (authorElement && authorElement.textContent.trim() === author) {
+      // Check if it's a patch file (.patch or .diff)
+      const filenameElement = attachment.querySelector('.trac-file');
+      if (filenameElement) {
+        const filename = filenameElement.textContent.trim();
+        if (filename.match(/\.(patch|diff)$/i)) {
+          patches.push({
+            filename: filename,
+            element: attachment
+          });
+        }
+      }
+    }
+  });
+
+  return patches;
+}
+
+// Helper: Analyze keyword validation issues using configurable rules
+function analyzeKeywordValidation() {
+  if (typeof VALIDATION_RULES === 'undefined') {
+    return [];
+  }
+
+  const keywordHistory = extractKeywordHistory();
+  const validationIssues = [];
+
+  // Get current keywords from the ticket
+  const keywordsElement = document.querySelector('#ticket td[headers="h_keywords"]');
+  const currentKeywordText = keywordsElement ? keywordsElement.textContent.trim() : '';
+  const currentKeywords = currentKeywordText ? currentKeywordText.split(/\s+/).filter(k => k.length > 0) : [];
+
+  // Get contributor data
+  const dataElement = document.getElementById('wpt-contributor-data');
+  let wpTracContributorLabels = {};
+  if (dataElement) {
+    try {
+      wpTracContributorLabels = JSON.parse(dataElement.getAttribute('data-contributors'));
+    } catch (e) {
+      // Fallback to empty object
+    }
+  }
+
+  // Rule 1: Self-applied "needs-testing" by patch author
+  const rule1 = VALIDATION_RULES['self-applied-needs-testing'];
+  if (rule1 && rule1.enabled) {
+    for (const [keyword, change] of Object.entries(keywordHistory)) {
+      if (keyword === rule1.keyword && change.action === 'added') {
+        const author = change.author;
+        const recentPatches = findPatchesByAuthor(author);
+        if (recentPatches.length > 0) {
+          const authorRole = wpTracContributorLabels[author] || 'Regular User';
+          validationIssues.push({
+            ruleId: 'self-applied-needs-testing',
+            type: rule1.type,
+            severity: rule1.severity,
+            keyword: keyword,
+            author: author,
+            authorRole: authorRole,
+            message: rule1.message,
+            recommendation: rule1.recommendation,
+            source: rule1.source
+          });
+        }
+      }
+    }
+  }
+
+  // Rule 2: Redundant keywords
+  const rule2 = VALIDATION_RULES['redundant-keywords'];
+  if (rule2 && rule2.enabled) {
+    currentKeywords.forEach(keyword => {
+      const keywordLower = keyword.toLowerCase();
+      if (rule2.pairs[keywordLower]) {
+        const equivalent = rule2.pairs[keywordLower];
+        const hasEquivalent = currentKeywords.some(k => k.toLowerCase() === equivalent.toLowerCase());
+        if (hasEquivalent) {
+          validationIssues.push({
+            ruleId: 'redundant-keywords',
+            type: rule2.type,
+            severity: rule2.severity,
+            keyword: keyword,
+            equivalent: equivalent,
+            message: rule2.message.replace('{keyword}', keyword).replace('{equivalent}', equivalent),
+            recommendation: rule2.recommendation.replace('{keyword}', keyword).replace('{equivalent}', equivalent),
+            source: rule2.source
+          });
+        }
+      }
+    });
+  }
+
+  // Rule 3: Authority-restricted keywords (only if enabled)
+  const rule3 = VALIDATION_RULES['authority-restricted-keywords'];
+  if (rule3 && rule3.enabled && typeof ROLE_HIERARCHY !== 'undefined') {
+    for (const [keyword, change] of Object.entries(keywordHistory)) {
+      if (rule3.keywords[keyword]) {
+        const author = change.author;
+        const authorRole = wpTracContributorLabels[author] || 'Regular User';
+        const authorRank = ROLE_HIERARCHY[authorRole] || 5;
+
+        const restriction = rule3.keywords[keyword];
+        const requiredRank = ROLE_HIERARCHY[restriction.minRole] || 4;
+
+        if (authorRank > requiredRank) {
+          validationIssues.push({
+            ruleId: 'authority-restricted-keywords',
+            type: rule3.type,
+            severity: rule3.severity,
+            keyword: keyword,
+            author: author,
+            authorRole: authorRole,
+            message: rule3.message
+              .replace('{role}', authorRole)
+              .replace('{keyword}', keyword)
+              .replace('{minRole}', restriction.minRole),
+            recommendation: rule3.recommendation.replace('{reason}', restriction.reason),
+            source: rule3.source
+          });
+        }
+      }
+    }
+  }
+
+  return validationIssues;
+}
+
+// Helper: Extract milestone change history
+function extractMilestoneHistory() {
+  const history = [];
+  const changes = document.querySelectorAll('.change');
+
+  // Get contributor data
+  const dataElement = document.getElementById('wpt-contributor-data');
+  let wpTracContributorLabels = {};
+  if (dataElement) {
+    try {
+      wpTracContributorLabels = JSON.parse(dataElement.getAttribute('data-contributors'));
+    } catch (e) {
+      // Fallback to empty object
+    }
+  }
+
+  changes.forEach(change => {
+    const milestoneItem = change.querySelector('li.trac-field-milestone');
+    if (!milestoneItem) return;
+
+    // Extract milestone values from <em> tags if present, otherwise from text
+    const emTags = milestoneItem.querySelectorAll('em');
+    let fromMilestone = null;
+    let toMilestone = null;
+
+    if (emTags.length === 2) {
+      // "changed from X to Y" format
+      fromMilestone = emTags[0].textContent.trim();
+      toMilestone = emTags[1].textContent.trim();
+    } else if (emTags.length === 1) {
+      // "set to X" format
+      toMilestone = emTags[0].textContent.trim();
+    } else {
+      // Fallback: parse from text content
+      const text = milestoneItem.textContent;
+      const fromMatch = text.match(/changed from\s+([^\s]+)\s+to\s+([^\s]+)/);
+      const setMatch = text.match(/set to\s+([^\s]+)/);
+
+      if (fromMatch) {
+        fromMilestone = fromMatch[1].trim();
+        toMilestone = fromMatch[2].trim();
+      } else if (setMatch) {
+        toMilestone = setMatch[1].trim();
+      }
+    }
+
+    // Handle empty milestone (when removed from all milestones)
+    if (toMilestone === '' || !toMilestone) {
+      toMilestone = '(none)';
+    }
+    if (fromMilestone === '' || !fromMilestone) {
+      fromMilestone = null; // Keep null for "set to" format
+    }
+
+    // Extract author - need to get just the username, excluding our badge elements
+    const header = change.querySelector('h3.change');
+    const authorElement = change.querySelector('.trac-author');
+    let author = 'Unknown';
+
+    if (authorElement) {
+      // Try to get username from the .username span first
+      const usernameSpan = authorElement.querySelector('.username');
+      if (usernameSpan) {
+        author = usernameSpan.textContent.trim();
+      } else {
+        // Clone the element and remove our badges to get clean text
+        const cleanAuthor = authorElement.cloneNode(true);
+        // Remove our role badges and GitHub badges
+        const badges = cleanAuthor.querySelectorAll('.wpt-role-badge, .wpt-github-badge');
+        badges.forEach(badge => badge.remove());
+
+        // Get the clean text and strip any remaining role labels
+        const fullText = cleanAuthor.textContent.trim();
+        // Remove common role labels that might be in Trac's markup
+        author = fullText.replace(/\s*(Core Committer|Lead Developer|Emeritus Committer|Component Maintainer|Lead Tester|Themes Committer|Project Lead|Regular User).*$/, '');
+      }
+    }
+
+    const authorRole = wpTracContributorLabels[author] || 'Regular User';
+
+    // Extract relative time - check multiple locations
+    let relativeTime = 'unknown';
+
+    // Try 1: Look for .date .timeline link (most reliable)
+    const dateDiv = change.querySelector('.date');
+    if (dateDiv) {
+      const timelineLink = dateDiv.querySelector('.timeline');
+      if (timelineLink) {
+        relativeTime = timelineLink.textContent.trim();
+      }
+    }
+
+    // Try 2: Look for .trac-time or time-related spans
+    if (relativeTime === 'unknown') {
+      const timeSpan = change.querySelector('.trac-time, .time-ago, [title*="ago"]');
+      if (timeSpan) {
+        relativeTime = timeSpan.textContent.trim();
+      }
+    }
+
+    // Try 3: Parse from header text as fallback
+    if (relativeTime === 'unknown' && header) {
+      const headerText = header.textContent;
+      const timeMatch = headerText.match(/(\d+\s+(?:years?|months?|days?|hours?|minutes?)\s+ago)/);
+      if (timeMatch) {
+        relativeTime = timeMatch[1];
+      }
+    }
+
+    // Extract comment link
+    const commentLink = header ? header.querySelector('a[href*="#comment"]') : null;
+    const commentId = commentLink ? commentLink.getAttribute('href') : '';
+
+    history.push({
+      from: fromMilestone,
+      to: toMilestone,
+      author: author,
+      authorRole: authorRole,
+      relativeTime: relativeTime,
+      commentId: commentId
+    });
+  });
+
+  return history.reverse(); // Oldest first for timeline
+}
+
+// Helper: Get role color
+function getRoleColor(role) {
+  if (typeof ROLE_COLORS !== 'undefined') {
+    return ROLE_COLORS[role] || '#757575';
+  }
+
+  // Fallback colors if ROLE_COLORS not loaded
+  const colors = {
+    'Project Lead': '#e91e63',
+    'Lead Developer': '#9c27b0',
+    'Core Committer': '#3f51b5',
+    'Emeritus Committer': '#ff9800',
+    'Component Maintainer': '#009688',
+    'Lead Tester': '#e91e63',
+    'Themes Committer': '#00bcd4',
+    'Regular User': '#757575'
+  };
+  return colors[role] || '#757575';
+}
+
+// Helper: Add authority legend to sidebar
+function addAuthorityLegend(roleStats) {
+  const sidebar = document.getElementById('wpt-keyword-sidebar');
+  if (!sidebar) return;
+
+  const legendSection = createCollapsibleSection(
+    'authority-legend',
+    'Authority Hierarchy',
+    '👥'
+  );
+
+  const legendContent = document.createElement('div');
+  legendContent.style.cssText = 'margin-top: 10px; font-size: 12px;';
+
+  // Sort roles by hierarchy
+  const sortedRoles = Object.entries(roleStats).sort((a, b) => {
+    const rankA = (typeof ROLE_HIERARCHY !== 'undefined' && ROLE_HIERARCHY[a[0]]) || 5;
+    const rankB = (typeof ROLE_HIERARCHY !== 'undefined' && ROLE_HIERARCHY[b[0]]) || 5;
+    return rankA - rankB;
+  });
+
+  sortedRoles.forEach(([role, count]) => {
+    const roleDiv = document.createElement('div');
+    roleDiv.style.cssText = `
+      padding: 6px;
+      margin-bottom: 4px;
+      background: #fafafa;
+      border-left: 3px solid ${getRoleColor(role)};
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    `;
+
+    const roleLabel = document.createElement('strong');
+    roleLabel.textContent = role;
+
+    const roleCount = document.createElement('span');
+    roleCount.style.cssText = 'color: #666; font-size: 11px;';
+    roleCount.textContent = `${count} comment${count > 1 ? 's' : ''}`;
+
+    roleDiv.appendChild(roleLabel);
+    roleDiv.appendChild(roleCount);
+    legendContent.appendChild(roleDiv);
+  });
+
+  // Add explanation
+  const explanation = document.createElement('div');
+  explanation.style.cssText = 'margin-top: 10px; padding: 8px; background: #e3f2fd; font-size: 11px; color: #1976d2; border-radius: 4px;';
+  explanation.textContent = '💡 Higher authority = more weight in triage decisions';
+  legendContent.appendChild(explanation);
+
+  legendSection.contentWrapper.appendChild(legendContent);
+
+  // Insert after recent comments section or at the beginning of content
+  const content = document.getElementById('wpt-sidebar-content');
+  const recentCommentsSection = document.getElementById('wpt-section-recent-comments');
+  if (recentCommentsSection) {
+    recentCommentsSection.parentNode.insertBefore(legendSection.container, recentCommentsSection.nextSibling);
+  } else {
+    content.insertBefore(legendSection.container, content.firstChild);
+  }
 }
 
 // Step 4: Create keyword sidebar
@@ -1060,6 +1441,112 @@ function createKeywordSidebar(contributorData = {}) {
     debug('Recent comments section added to content');
   }
 
+  // Add Milestone History Timeline
+  const milestoneHistory = extractMilestoneHistory();
+  debug('Milestone history extracted:', milestoneHistory.length, 'changes');
+  if (milestoneHistory.length > 0) {
+    const timelineSection = createCollapsibleSection('milestone-timeline', 'Milestone History', '📊', true);
+
+    const timelineContent = document.createElement('div');
+    timelineContent.style.cssText = 'margin-top: 10px; position: relative; padding: 10px 0;';
+
+    // Vertical timeline line
+    const timelineLine = document.createElement('div');
+    timelineLine.style.cssText = `
+      position: absolute;
+      left: 10px;
+      top: 15px;
+      bottom: 15px;
+      width: 2px;
+      background: #ddd;
+    `;
+    timelineContent.appendChild(timelineLine);
+
+    milestoneHistory.forEach((change, index) => {
+      const changeDiv = document.createElement('div');
+      changeDiv.style.cssText = `
+        padding-left: 30px;
+        margin-bottom: 15px;
+        position: relative;
+      `;
+
+      // Timeline dot
+      const dot = document.createElement('div');
+      dot.style.cssText = `
+        position: absolute;
+        left: 5px;
+        top: 5px;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: ${index === milestoneHistory.length - 1 ? '#4CAF50' : '#2196F3'};
+        border: 2px solid white;
+        box-shadow: 0 0 0 1px #ddd;
+      `;
+      changeDiv.appendChild(dot);
+
+      // Change content
+      const contentBox = document.createElement('div');
+      contentBox.style.cssText = `
+        background: #fafafa;
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 12px;
+      `;
+
+      let milestoneText = '';
+      if (change.from) {
+        // "from X to Y" format
+        const fromDisplay = change.from === '(none)' ? '<em style="color: #999;">none</em>' : `<strong>${change.from}</strong>`;
+        const toDisplay = change.to === '(none)' ? '<em style="color: #999;">none</em>' : `<strong style="color: #4CAF50;">${change.to}</strong>`;
+        milestoneText = `${fromDisplay} → ${toDisplay}`;
+      } else {
+        // "Set to X" format
+        if (change.to === '(none)') {
+          milestoneText = `<span style="color: #999;">Milestone removed</span>`;
+        } else {
+          milestoneText = `Set to <strong style="color: #4CAF50;">${change.to}</strong>`;
+        }
+      }
+
+      contentBox.innerHTML = `
+        <div style="margin-bottom: 4px;">${milestoneText}</div>
+        <div style="color: #666; font-size: 11px;">
+          by <strong>${change.author}</strong> (${change.authorRole})
+          <span style="color: #999;"> • ${change.relativeTime}</span>
+        </div>
+        ${change.commentId ? `<a href="${change.commentId}" style="font-size: 10px; color: #2196F3; text-decoration: none;">View comment →</a>` : ''}
+      `;
+
+      changeDiv.appendChild(contentBox);
+      timelineContent.appendChild(changeDiv);
+    });
+
+    // Warning if punted multiple times
+    if (milestoneHistory.length >= 2) {
+      const warningBox = document.createElement('div');
+      warningBox.style.cssText = `
+        margin-top: 10px;
+        padding: 8px;
+        background: #fff3e0;
+        border-left: 3px solid #ff9800;
+        font-size: 11px;
+        color: #e65100;
+        border-radius: 4px;
+      `;
+      const puntCount = milestoneHistory.length;
+      warningBox.innerHTML = `
+        <strong>⚠️ Punted ${puntCount} time${puntCount > 1 ? 's' : ''}</strong><br>
+        Consider if this ticket needs more work before next milestone.
+      `;
+      timelineContent.appendChild(warningBox);
+    }
+
+    timelineSection.contentWrapper.appendChild(timelineContent);
+    content.appendChild(timelineSection.container);
+    debug('Milestone history timeline added to content');
+  }
+
   // Add component maintainer info
   const maintainerInfo = getComponentMaintainerInfo();
   debug('Maintainer info:', maintainerInfo ? maintainerInfo.component : 'none');
@@ -1161,6 +1648,79 @@ function createKeywordSidebar(contributorData = {}) {
     maintainerSection.contentWrapper.appendChild(maintainerBox);
     content.appendChild(maintainerSection.container);
     debug('Maintainer section added to content');
+  }
+
+  // Add Keyword Validation Panel (if issues found)
+  const validationIssues = analyzeKeywordValidation();
+  debug('Keyword validation issues found:', validationIssues.length);
+  if (validationIssues.length > 0) {
+    const validationSection = createCollapsibleSection(
+      'keyword-validation',
+      'Keyword Validation',
+      '⚠️',
+      true // Expanded by default
+    );
+
+    const validationContent = document.createElement('div');
+    validationContent.style.cssText = 'margin-top: 10px;';
+
+    validationIssues.forEach(issue => {
+      const issueDiv = document.createElement('div');
+      const severityColor = {
+        'high': '#f44336',
+        'medium': '#ff9800',
+        'low': '#2196F3'
+      }[issue.severity];
+
+      issueDiv.style.cssText = `
+        padding: 10px;
+        margin-bottom: 8px;
+        border-left: 4px solid ${severityColor};
+        background: #fafafa;
+        font-size: 12px;
+        border-radius: 4px;
+      `;
+
+      const severityLabel = {
+        'high': '🔴 HIGH PRIORITY',
+        'medium': '🟠 MEDIUM',
+        'low': '🔵 LOW'
+      }[issue.severity];
+
+      // Build source info display
+      let sourceDisplay = '';
+      if (issue.source && typeof VALIDATION_RULE_SOURCES !== 'undefined') {
+        const sourceConfig = VALIDATION_RULE_SOURCES[issue.source.type] || VALIDATION_RULE_SOURCES['best-practice'];
+        const sourceIcon = sourceConfig.icon;
+        const sourceColor = sourceConfig.color;
+
+        sourceDisplay = `
+          <div style="font-size: 10px; color: #666; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e0e0e0;">
+            <div style="margin-bottom: 4px;">
+              <span style="color: ${sourceColor};">${sourceIcon} <strong>${sourceConfig.label}</strong></span>
+            </div>
+            <div style="color: #888; font-style: italic;">${issue.source.note || issue.source.title}</div>
+            ${issue.source.url ? `<a href="${issue.source.url}" target="_blank" style="color: #2271b1; text-decoration: none; font-weight: 500;">📖 View documentation →</a>` : ''}
+          </div>
+        `;
+      }
+
+      issueDiv.innerHTML = `
+        <div style="font-weight: bold; color: ${severityColor}; margin-bottom: 6px;">${severityLabel}</div>
+        <div style="color: #333; margin-bottom: 6px;">${issue.message}</div>
+        <div style="font-size: 11px; color: #666; margin-bottom: 4px;">
+          Added by: <strong>${issue.author}</strong> (${issue.authorRole})
+        </div>
+        ${issue.recommendation ? `<div style="font-size: 11px; color: #555; font-style: italic; margin-top: 6px; padding-top: 6px; border-top: 1px solid #e0e0e0;">💡 ${issue.recommendation}</div>` : ''}
+        ${sourceDisplay}
+      `;
+
+      validationContent.appendChild(issueDiv);
+    });
+
+    validationSection.contentWrapper.appendChild(validationContent);
+    content.appendChild(validationSection.container);
+    debug('Keyword validation panel added to content');
   }
 
   // Add Keywords section header and context
