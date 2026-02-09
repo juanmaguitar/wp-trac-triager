@@ -282,8 +282,6 @@ We welcome contributions! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/juanmaguitar/wp-trac-triager/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/juanmaguitar/wp-trac-triager/discussions)
-- **Email**: juanma.garrido@gmail.com
 
 ## License
 
