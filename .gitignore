@@ -30,7 +30,7 @@ test-results/
 coverage/
 
 # Documentation build
-docs/
+
 
 # Backup files
 *-backup.*
