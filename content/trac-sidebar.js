@@ -165,6 +165,24 @@ function highlightContributors(wpTracContributorLabels) {
   }
 }
 
+// Helper: Check if user is a core committer or component maintainer
+function isImportantReporter(username, contributorData = {}) {
+  // Check if user has a role in contributor data
+  if (contributorData[username]) {
+    const role = contributorData[username];
+    // Core committers and component maintainers are important
+    const importantRoles = ['Project Lead', 'Lead Developer', 'Core Committer', 'Emeritus Committer', 'Component Maintainer', 'Themes Committer'];
+    return importantRoles.includes(role) ? role : null;
+  }
+  
+  // Also check if user is a component maintainer in MAINTAINER_PROFILES
+  if (typeof MAINTAINER_PROFILES !== 'undefined' && MAINTAINER_PROFILES[username.toLowerCase()]) {
+    return 'Component Maintainer';
+  }
+  
+  return null;
+}
+
 // Helper: Highlight reporter cell in main ticket table if core committer/maintainer
 function highlightImportantReporter(contributorData = {}) {
   const reporterCell = document.querySelector('#ticket td[headers="h_reporter"]');
@@ -267,24 +285,6 @@ function createCollapsibleSection(sectionId, title, icon, defaultExpanded = true
   container.appendChild(contentWrapper);
 
   return { container, contentWrapper };
-}
-
-// Helper: Check if user is a core committer or component maintainer
-function isImportantReporter(username, contributorData = {}) {
-  // Check if user has a role in contributor data
-  if (contributorData[username]) {
-    const role = contributorData[username];
-    // Core committers and component maintainers are important
-    const importantRoles = ['Project Lead', 'Lead Developer', 'Core Committer', 'Emeritus Committer', 'Component Maintainer', 'Themes Committer'];
-    return importantRoles.includes(role) ? role : null;
-  }
-  
-  // Also check if user is a component maintainer in MAINTAINER_PROFILES
-  if (typeof MAINTAINER_PROFILES !== 'undefined' && MAINTAINER_PROFILES[username.toLowerCase()]) {
-    return 'Component Maintainer';
-  }
-  
-  return null;
 }
 
 // Helper: Get ticket summary information
