@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added - Reporter Highlighting for Core Team Members
+
+#### Visual Prominence for Important Reporters
+- **Core Committer/Maintainer Badge**: Tickets reported by core committers or component maintainers now display a prominent badge in both the sidebar and main ticket table
+- **Green Highlight**: The reporter field in the Quick Info section and main ticket table is highlighted with a green background when reported by a core team member
+- **Role Badge**: Shows the specific role (e.g., "Core Committer", "Component Maintainer") next to the reporter's name
+- **Instant Recognition**: Helps triagers quickly identify tickets that have higher priority due to being reported by experienced contributors
+
+#### Implementation Details
+- **New Function**: `isImportantReporter()` - Checks if a reporter is a core committer or component maintainer
+- **New Function**: `highlightImportantReporter()` - Highlights the reporter cell in the main ticket table
+- **Important Roles**: Project Lead, Lead Developer, Core Committer, Emeritus Committer, Component Maintainer, Themes Committer
+- **Dual Highlight**: Applied to both the Quick Info sidebar section and the main ticket table's reporter cell
+- **Tooltip**: Hovering over the badge shows "This ticket was reported by a [Role]"
+
+#### Use Cases
+- **Triaging Priority**: Quickly identify tickets that should be reviewed with higher priority
+- **Context Awareness**: Understand when a ticket comes from an experienced contributor who likely has deep knowledge
+- **Efficient Workflow**: Reduce time spent evaluating the importance of tickets during triage
+
 ## [1.5.0] - 2026-02-09
 
 ### Added - Keyword Change History Timeline
