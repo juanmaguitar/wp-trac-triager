@@ -165,6 +165,46 @@ function highlightContributors(wpTracContributorLabels) {
   }
 }
 
+// Helper: Highlight reporter cell in main ticket table if core committer/maintainer
+function highlightImportantReporter(contributorData = {}) {
+  const reporterCell = document.querySelector('#ticket td[headers="h_reporter"]');
+  if (!reporterCell) return;
+  
+  const reporterLink = reporterCell.querySelector('a.trac-author');
+  if (!reporterLink) return;
+  
+  const reporter = reporterLink.textContent.trim();
+  const reporterRole = isImportantReporter(reporter, contributorData);
+  
+  if (reporterRole) {
+    // Highlight the reporter cell with green background
+    reporterCell.style.backgroundColor = '#e8f5e9';
+    reporterCell.style.borderLeft = '3px solid #4CAF50';
+    reporterCell.style.paddingLeft = '8px';
+    
+    // Add a badge after the reporter name
+    let badge = reporterCell.querySelector('.wpt-reporter-badge');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'wpt-reporter-badge';
+      badge.style.cssText = `
+        display: inline-block;
+        background: #4CAF50;
+        color: white;
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 10px;
+        font-weight: bold;
+        margin-left: 8px;
+        vertical-align: middle;
+      `;
+      badge.textContent = reporterRole;
+      badge.title = `This ticket was reported by a ${reporterRole}`;
+      reporterCell.appendChild(badge);
+    }
+  }
+}
+
 // Helper: Create collapsible section with persistent state
 function createCollapsibleSection(sectionId, title, icon, defaultExpanded = true) {
   const isExpanded = localStorage.getItem(`wpt-section-${sectionId}`) !== 'false';
@@ -227,6 +267,24 @@ function createCollapsibleSection(sectionId, title, icon, defaultExpanded = true
   container.appendChild(contentWrapper);
 
   return { container, contentWrapper };
+}
+
+// Helper: Check if user is a core committer or component maintainer
+function isImportantReporter(username, contributorData = {}) {
+  // Check if user has a role in contributor data
+  if (contributorData[username]) {
+    const role = contributorData[username];
+    // Core committers and component maintainers are important
+    const importantRoles = ['Project Lead', 'Lead Developer', 'Core Committer', 'Emeritus Committer', 'Component Maintainer', 'Themes Committer'];
+    return importantRoles.includes(role) ? role : null;
+  }
+  
+  // Also check if user is a component maintainer in MAINTAINER_PROFILES
+  if (typeof MAINTAINER_PROFILES !== 'undefined' && MAINTAINER_PROFILES[username.toLowerCase()]) {
+    return 'Component Maintainer';
+  }
+  
+  return null;
 }
 
 // Helper: Get ticket summary information
@@ -1468,6 +1526,9 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
       if (item.required || item.value) {
         // Special handling for closed status - make it prominent
         const isClosed = item.label === 'Status' && item.value && item.value.toLowerCase() === 'closed';
+        
+        // Check if reporter is a core committer or component maintainer
+        const isImportant = item.label === 'Reporter' && isImportantReporter(item.value, contributorData);
 
         const itemDiv = document.createElement('div');
         itemDiv.style.cssText = `
@@ -1477,12 +1538,13 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
           justify-content: space-between;
           ${item.isKeywords ? 'align-items: flex-start;' : ''}
           ${isClosed ? 'background: #fee2e2; padding: 6px; border-radius: 4px; border-left: 3px solid #dc2626;' : ''}
+          ${isImportant ? 'background: #e8f5e9; padding: 6px; border-radius: 4px; border-left: 3px solid #4CAF50;' : ''}
         `;
 
         const labelSpan = document.createElement('span');
         labelSpan.style.cssText = `
-          color: ${isClosed ? '#991b1b' : '#6c757d'};
-          font-weight: ${isClosed ? 'bold' : '500'};
+          color: ${isClosed ? '#991b1b' : isImportant ? '#2e7d32' : '#6c757d'};
+          font-weight: ${isClosed || isImportant ? 'bold' : '500'};
           ${item.isKeywords ? 'padding-top: 1px;' : ''}
         `;
         labelSpan.textContent = item.label + ':';
@@ -1537,6 +1599,25 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
           link.onmouseover = () => link.style.textDecoration = 'underline';
           link.onmouseout = () => link.style.textDecoration = 'none';
           valueContainer.appendChild(link);
+          
+          // Add badge for important reporters
+          if (isImportant) {
+            const badge = document.createElement('span');
+            badge.style.cssText = `
+              display: inline-block;
+              background: #4CAF50;
+              color: white;
+              padding: 2px 6px;
+              border-radius: 3px;
+              font-size: 9px;
+              font-weight: bold;
+              margin-left: 6px;
+              vertical-align: middle;
+            `;
+            badge.textContent = isImportant;
+            badge.title = `This ticket was reported by a ${isImportant}`;
+            valueContainer.appendChild(badge);
+          }
         }
         // Plain text values
         else {
@@ -2352,6 +2433,9 @@ document.addEventListener('wpt-data-ready', function() {
     } catch (e) {
     }
   }
+
+  // Highlight reporter in ticket table if they're important
+  setTimeout(() => highlightImportantReporter(contributorData), 200);
 
   // Wait a bit for highlighting to complete
   setTimeout(() => createKeywordSidebar(contributorData), 500);
