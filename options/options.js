@@ -6,10 +6,8 @@ const defaultSidebarSections = [
   { id: 'recent-comments', icon: '💬', name: 'Recent Comments', description: 'Last 3 comments on ticket', enabled: true, order: 2 },
   { id: 'milestone-timeline', icon: '📊', name: 'Milestone History', description: 'Timeline of milestone changes', enabled: true, order: 3 },
   { id: 'keyword-history', icon: '🔄', name: 'Keyword Change History', description: 'Timeline of keyword additions/removals', enabled: true, order: 4 },
-  { id: 'authority-legend', icon: '👥', name: 'Authority Legend', description: 'Role distribution in comments', enabled: true, order: 5 },
-  { id: 'maintainers', icon: '🔧', name: 'Component Maintainers', description: 'Maintainer information', enabled: true, order: 6 },
-  { id: 'keyword-validation', icon: '⚠️', name: 'Keyword Validation', description: 'Validation warnings (conditional)', enabled: true, order: 7 },
-  { id: 'keywords', icon: '🏷️', name: 'TRAC Keywords', description: 'Keyword explanations', enabled: true, order: 8 }
+  { id: 'maintainers', icon: '🔧', name: 'Component Maintainers', description: 'Maintainer information', enabled: true, order: 5 },
+  { id: 'keywords', icon: '🏷️', name: 'TRAC Keywords', description: 'Keyword explanations', enabled: true, order: 6 }
 ];
 
 const defaultConfig = {
@@ -29,8 +27,32 @@ function loadSettings() {
     // Set target WordPress version
     document.getElementById('targetWpVersion').value = config.targetWpVersion || '7.0';
 
-    // Load sidebar sections
-    const sections = config.sidebarSections || defaultSidebarSections;
+    // Merge saved sections with defaults (adds any new sections)
+    let sections = config.sidebarSections || defaultSidebarSections;
+
+    if (config.sidebarSections) {
+      // Create a map of existing sections by ID
+      const existingSectionsMap = {};
+      config.sidebarSections.forEach(section => {
+        existingSectionsMap[section.id] = section;
+      });
+
+      // Merge: keep existing sections, add new ones from defaults
+      sections = defaultSidebarSections.map(defaultSection => {
+        if (existingSectionsMap[defaultSection.id]) {
+          // Keep user's saved settings for this section
+          return existingSectionsMap[defaultSection.id];
+        } else {
+          // Add new section from defaults
+          return defaultSection;
+        }
+      });
+
+      // Save merged sections back to storage
+      config.sidebarSections = sections;
+      chrome.storage.sync.set({ config: config });
+    }
+
     renderSidebarSections(sections);
   });
 }

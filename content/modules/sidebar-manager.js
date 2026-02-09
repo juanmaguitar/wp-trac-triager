@@ -102,7 +102,7 @@ export class SidebarManager {
     });
 
     const title = DOMHelpers.createElement('h3', {
-      textContent: '🔍 TRAC Visual Helper'
+      textContent: '🔍 WP Trac Triager'
     }, {
       margin: '0',
       fontSize: '16px',

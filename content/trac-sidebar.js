@@ -511,74 +511,66 @@ function extractKeywordHistory() {
     // Find keyword changes in this comment
     const changeItems = change.querySelectorAll('ul.changes li.trac-field-keywords');
     changeItems.forEach(item => {
-      // Get all <em> tags (keywords) within this change item
-      const keywordTags = item.querySelectorAll('em');
+      // Parse the full text to understand the structure
+      const fullText = item.textContent.replace(/^Keywords\s+/, '').trim();
 
-      keywordTags.forEach(emTag => {
-        const keyword = emTag.textContent.trim();
-        // Get the text after the <em> tag to determine if it was added or removed
-        const nextText = emTag.nextSibling ? emTag.nextSibling.textContent : '';
+      // Split by semicolon to get separate actions
+      const actions = fullText.split(';').map(s => s.trim());
 
-        let action = null;
-        if (nextText.includes('added')) {
-          action = 'added';
-        } else if (nextText.includes('removed')) {
-          action = 'removed';
+      // Get all <em> tags to extract keyword names
+      const allKeywordTags = Array.from(item.querySelectorAll('em'));
+      const keywordNames = allKeywordTags.map(tag => tag.textContent.trim());
+
+      // Get comment metadata (same for all keywords in this change)
+      const commentId = change.id;
+      const commentLink = commentId ? `#${commentId}` : null;
+
+      const changeHeader = change.querySelector('h3.change');
+      let timeText = 'unknown';
+      if (changeHeader) {
+        const headerText = changeHeader.textContent;
+        const timeMatch = headerText.match(/(\d+\s+(?:years?|months?|days?|hours?|minutes?)\s+ago)/);
+        if (timeMatch) {
+          timeText = timeMatch[1];
         }
+      }
 
-        if (action) {
-          const keywords = [keyword];
+      const authorElement = change.querySelector('.trac-author');
+      let author = 'unknown';
+      if (authorElement) {
+        const usernameSpan = authorElement.querySelector('.username');
+        if (usernameSpan) {
+          author = usernameSpan.textContent.trim();
+        } else {
+          const cleanAuthor = authorElement.cloneNode(true);
+          const badges = cleanAuthor.querySelectorAll('.wpt-role-badge, .wpt-github-badge');
+          badges.forEach(badge => badge.remove());
+          const fullText = cleanAuthor.textContent.trim();
+          author = fullText.replace(/\s*(Core Committer|Lead Developer|Emeritus Committer|Component Maintainer|Lead Tester|Themes Committer|Project Lead|Individual Contributor).*$/, '');
+        }
+      }
 
-          // Get comment link and date
-          const commentId = change.id; // e.g., "comment:1"
-          const commentLink = commentId ? `#${commentId}` : null;
+      // Process each action segment
+      actions.forEach(actionText => {
+        const isAdded = actionText.includes('added');
+        const isRemoved = actionText.includes('removed');
 
-          // Look for time in the change header (h3.change or nearby)
-          const changeHeader = change.querySelector('h3.change');
-          let timeText = 'unknown';
-          if (changeHeader) {
-            // Extract from header text (e.g., "16 months ago")
-            const headerText = changeHeader.textContent;
-            const timeMatch = headerText.match(/(\d+\s+(?:years?|months?|days?|hours?|minutes?)\s+ago)/);
-            if (timeMatch) {
-              timeText = timeMatch[1]; // This includes "ago"
-            }
-          }
+        if (!isAdded && !isRemoved) return;
 
-          // Extract author - need to get just the username, excluding our badge elements
-          const authorElement = change.querySelector('.trac-author');
-          let author = 'unknown';
-
-          if (authorElement) {
-            // Try to get username from the .username span first
-            const usernameSpan = authorElement.querySelector('.username');
-            if (usernameSpan) {
-              author = usernameSpan.textContent.trim();
-            } else {
-              // Clone the element and remove our badges to get clean text
-              const cleanAuthor = authorElement.cloneNode(true);
-              // Remove our role badges and GitHub badges
-              const badges = cleanAuthor.querySelectorAll('.wpt-role-badge, .wpt-github-badge');
-              badges.forEach(badge => badge.remove());
-
-              // Get the clean text and strip any remaining role labels
-              const fullText = cleanAuthor.textContent.trim();
-              // Remove common role labels that might be in Trac's markup
-              author = fullText.replace(/\s*(Core Committer|Lead Developer|Emeritus Committer|Component Maintainer|Lead Tester|Themes Committer|Project Lead|Individual Contributor).*$/, '');
-            }
-          }
-
-          keywords.forEach(kw => {
+        // Find all keywords mentioned in this action segment
+        keywordNames.forEach(keyword => {
+          if (actionText.includes(keyword)) {
+            const action = isAdded ? 'added' : 'removed';
             if (action === 'added') {
-              history[kw.toLowerCase()] = {
+              history[keyword.toLowerCase()] = {
                 date: timeText,
                 commentLink,
                 author,
                 action: 'added'
               };
             }
-          });
-        }
+          }
+        });
       });
     });
   });
@@ -742,19 +734,34 @@ function extractKeywordChangeTimeline() {
     const keywordChanges = { added: [], removed: [] };
 
     changeItems.forEach(item => {
-      // Get all <em> tags (keywords) within this change item
-      const keywordTags = item.querySelectorAll('em');
+      // Parse the full text to understand the structure
+      // Example: "Keywords changes-requested added; has-patch needs-testing removed"
+      const fullText = item.textContent.replace(/^Keywords\s+/, '').trim();
 
-      keywordTags.forEach(emTag => {
-        const keyword = emTag.textContent.trim();
-        // Get the text after the <em> tag to determine if it was added or removed
-        const nextText = emTag.nextSibling ? emTag.nextSibling.textContent : '';
+      // Split by semicolon to get separate actions
+      const actions = fullText.split(';').map(s => s.trim());
 
-        if (nextText.includes('added')) {
-          keywordChanges.added.push(keyword);
-        } else if (nextText.includes('removed')) {
-          keywordChanges.removed.push(keyword);
-        }
+      // Get all <em> tags to extract keyword names
+      const allKeywordTags = Array.from(item.querySelectorAll('em'));
+      const keywordNames = allKeywordTags.map(tag => tag.textContent.trim());
+
+      actions.forEach(actionText => {
+        // Determine if this action is "added" or "removed"
+        const isAdded = actionText.includes('added');
+        const isRemoved = actionText.includes('removed');
+
+        if (!isAdded && !isRemoved) return;
+
+        // Find all keywords mentioned in this action segment
+        keywordNames.forEach(keyword => {
+          if (actionText.includes(keyword)) {
+            if (isAdded && !keywordChanges.added.includes(keyword)) {
+              keywordChanges.added.push(keyword);
+            } else if (isRemoved && !keywordChanges.removed.includes(keyword)) {
+              keywordChanges.removed.push(keyword);
+            }
+          }
+        });
       });
     });
 
@@ -1104,10 +1111,8 @@ function getSectionOrder(config) {
       'recent-comments': 2,
       'milestone-timeline': 3,
       'keyword-history': 4,
-      'authority-legend': 5,
-      'maintainers': 6,
-      'keyword-validation': 7,
-      'keywords': 8
+      'maintainers': 5,
+      'keywords': 6
     };
   }
 
@@ -1253,7 +1258,7 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
   `;
 
   const headerTitle = document.createElement('h3');
-  headerTitle.textContent = '🔍 TRAC Visual Helper';
+  headerTitle.textContent = '🔍 WP Trac Triager';
   headerTitle.style.cssText = `
     margin: 0;
     font-size: 16px;
@@ -1951,20 +1956,28 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
           font-size: 12px;
         `;
 
-        // Build keyword changes HTML
+        // Build keyword changes HTML with tooltips
         let changesHtml = '<div style="margin-bottom: 4px;">';
 
         if (change.added.length > 0) {
-          const addedKeywords = change.added.map(kw =>
-            `<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-right: 4px;">+ ${kw}</span>`
-          ).join('');
+          const addedKeywords = change.added.map(kw => {
+            const keywordData = KEYWORD_DATA[kw.toLowerCase()];
+            const tooltip = keywordData
+              ? `${keywordData.description}\n\nUsage: ${keywordData.usage}`
+              : 'No description available';
+            return `<span style="background: #e8f5e9; color: #2e7d32; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-right: 4px; cursor: help;" title="${tooltip.replace(/"/g, '&quot;')}">+ ${kw}</span>`;
+          }).join('');
           changesHtml += addedKeywords;
         }
 
         if (change.removed.length > 0) {
-          const removedKeywords = change.removed.map(kw =>
-            `<span style="background: #ffebee; color: #c62828; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-right: 4px;">- ${kw}</span>`
-          ).join('');
+          const removedKeywords = change.removed.map(kw => {
+            const keywordData = KEYWORD_DATA[kw.toLowerCase()];
+            const tooltip = keywordData
+              ? `${keywordData.description}\n\nUsage: ${keywordData.usage}`
+              : 'No description available';
+            return `<span style="background: #ffebee; color: #c62828; padding: 2px 6px; border-radius: 3px; font-weight: 600; margin-right: 4px; cursor: help;" title="${tooltip.replace(/"/g, '&quot;')}">- ${kw}</span>`;
+          }).join('');
           changesHtml += removedKeywords;
         }
 
@@ -2098,7 +2111,10 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
     }
   }
 
-  // Section 6: Keyword Validation (conditional - only if issues found)
+  // Section 6: Keyword Validation - DISABLED (provides suggestions, not pure visibility)
+  // This feature has been disabled to maintain focus on information visibility only
+  // Code preserved for future reference if validation UI is redesigned
+  /*
   if (isSectionEnabled('keyword-validation', config)) {
     const validationIssues = analyzeKeywordValidation();
     debug('Keyword validation issues found:', validationIssues.length);
@@ -2170,6 +2186,7 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
       debug('Keyword validation panel added to array');
     }
   }
+  */
 
   // Section 7: Keywords
   if (isSectionEnabled('keywords', config)) {

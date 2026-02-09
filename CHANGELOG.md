@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 🟠 Orange: Mixed (both added and removed)
   - 🔵 Blue: Default
 - Inline keyword badges with + (addition) or - (removal) prefix
+- **Interactive Tooltips**: Hover over any keyword to see its description and usage guidelines
 - Role-based color coding for author information
 - Chronological order from oldest to newest
 
@@ -42,7 +43,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Context for Decisions**: Review the full history before making triage decisions
 - **Learning Tool**: New contributors can learn proper keyword workflows by observing patterns
 
+#### Contributor-Friendly Data Management
+- **New JSON Source File**: Created `data/keywords.json` as the single source of truth for all keyword definitions
+- **Easy Updates**: Contributors can now update keyword definitions via Pull Requests by editing a simple JSON file
+- **Comprehensive Documentation**: Added `data/README.md` with detailed instructions for updating keywords
+- **Schema Validation**: JSON includes schema definition for validation
+- **Metadata Tracking**: Includes source URL, last updated date, and versioning information
+- **30+ Keywords Documented**: Complete definitions with descriptions, usage guidelines, categories, and colors
+
 ### Changed
+- **Extension Branding**: Official name is now consistently "WP Trac Triager" throughout the extension
+  - Updated sidebar header from "🔍 TRAC Visual Helper" to "🔍 WP Trac Triager"
+  - Updated in all code files and documentation
+  - Matches the official extension name in manifest.json
 - **Section Ordering**: Updated default section order to accommodate new Keyword History section
   - Milestone History: 3
   - **Keyword Change History: 4** (NEW)
@@ -50,6 +63,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Component Maintainers: 6 (was 5)
   - Keyword Validation: 7 (was 6)
   - TRAC Keywords: 8 (was 7)
+
+### Removed
+- **Keyword Validation Section**: Removed from sidebar and settings to maintain pure visibility focus
+  - This feature provided suggestions/recommendations ("you should remove this keyword")
+  - Conflicts with extension philosophy of showing information without telling users what to do
+  - Code preserved in comments for potential future redesign
+  - Rationale: Users should make their own triage decisions based on visible information
+
+- **Authority Legend from Settings**: Removed from Sidebar Section Manager (still functions dynamically)
+  - Authority Legend is a **conditional section** that only appears when core team members comment on a ticket
+  - Not part of the standard section list, so shouldn't be in settings
+  - Still renders automatically when applicable (cannot be toggled off)
+  - Appears dynamically based on ticket content, not user preferences
+
+### Fixed
+- **Multiple Keyword Detection**: Keyword Change History now correctly detects all keywords in multi-keyword changes
+  - Previously: "has-patch needs-testing removed" only detected "needs-testing"
+  - Now: Correctly detects both "has-patch" and "needs-testing" as removed
+  - Fixed by parsing semicolon-separated action segments instead of checking immediate text nodes
+  - Applies to both `extractKeywordHistory()` and `extractKeywordChangeTimeline()` functions
+
+- **Settings Migration**: Settings page now properly merges new sections with existing user preferences
+  - When new sections are added in updates, they automatically appear in the settings page
+  - User's existing customizations are preserved
+  - No need to reset settings when updating the extension
 
 ### Philosophy
 This feature focuses purely on **information visibility** rather than recommendations. It helps users make informed decisions based on complete context, without telling them what to do. The extension continues to prioritize empowering contributors with data while respecting their judgment.
