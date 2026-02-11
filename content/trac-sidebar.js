@@ -73,20 +73,30 @@ function highlightContributors(wpTracContributorLabels) {
 
     const username = authorLink.textContent.trim();
 
-    // Resolve role: Reporter (ticket author) first, then core team
-    let role = null;
-    if (reporterUsername && username === reporterUsername) {
-      role = 'Reporter';
-    }
-    if (!role && wpTracContributorLabels[username]) {
-      role = wpTracContributorLabels[username];
-    }
-    if (!role) return;
+    // Detect multiple roles: Reporter (primary if ticket author) + authority role (secondary)
+    const isReporter = reporterUsername && username === reporterUsername;
+    const authorityRole = wpTracContributorLabels[username] || null;
 
-    const colors = roleColors[role] || roleColors['default'];
+    // Determine roles to display
+    const roles = [];
+    if (isReporter) {
+      roles.push('Reporter'); // Primary role
+    }
+    if (authorityRole) {
+      roles.push(authorityRole); // Secondary role (if exists)
+    }
 
-    // Count role appearances for legend (core team only)
-    roleStats[role] = (roleStats[role] || 0) + 1;
+    // Skip if no roles
+    if (roles.length === 0) return;
+
+    // Primary role determines the border/background highlight
+    const primaryRole = roles[0];
+    const colors = roleColors[primaryRole] || roleColors['default'];
+
+    // Count role appearances for legend (includes core team and reporter)
+    roles.forEach(role => {
+      roleStats[role] = (roleStats[role] || 0) + 1;
+    });
 
     // Check if this is a GitHub-synced comment
     const header = comment.querySelector('h3.change');
@@ -116,35 +126,40 @@ function highlightContributors(wpTracContributorLabels) {
       tracBadge.style.display = 'none';
     }
 
-    // Check if our badge already exists
-    let ourBadge = authorContainer.querySelector('.wpt-role-badge');
+    // Remove any existing role badges (for re-rendering on updates)
+    authorContainer.querySelectorAll('.wpt-role-badge').forEach(badge => badge.remove());
 
-    if (!ourBadge) {
-      // Create our colored badge
-      ourBadge = document.createElement('span');
-      ourBadge.className = 'wpt-role-badge';
-      ourBadge.textContent = role;
+    // Create badge(s) for each role
+    const usernameSpan = authorLink.querySelector('.username');
+    const insertionPoint = usernameSpan ? usernameSpan.nextSibling : null;
 
-      // Insert after the username span
-      const usernameSpan = authorLink.querySelector('.username');
-      if (usernameSpan) {
-        usernameSpan.parentElement.insertBefore(ourBadge, usernameSpan.nextSibling);
+    roles.forEach((role, index) => {
+      const badge = document.createElement('span');
+      badge.className = 'wpt-role-badge';
+      badge.textContent = role;
+
+      // Get color for this specific role
+      const roleColor = roleColors[role] || roleColors['default'];
+
+      // Style the badge with role-specific color
+      badge.style.cssText = `
+        display: inline-block;
+        background: ${roleColor.badge};
+        color: white;
+        padding: 2px 8px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: bold;
+        margin-left: ${index === 0 ? '8px' : '4px'};
+      `;
+
+      // Insert badge after username or after previous badge
+      if (insertionPoint) {
+        usernameSpan.parentElement.insertBefore(badge, insertionPoint);
       } else {
-        authorLink.appendChild(ourBadge);
+        authorLink.appendChild(badge);
       }
-    }
-
-    // Style our badge with role-specific color
-    ourBadge.style.cssText = `
-      display: inline-block;
-      background: ${colors.badge};
-      color: white;
-      padding: 2px 8px;
-      border-radius: 3px;
-      font-size: 11px;
-      font-weight: bold;
-      margin-left: 8px;
-    `;
+    });
 
     // Add GitHub sync indicator if applicable
     if (isGitHubSynced) {
@@ -1051,7 +1066,7 @@ function addAuthorityLegend(roleStats) {
 
     const legendSection = createCollapsibleSection(
       'authority-legend',
-      'Authority Hierarchy',
+      'Comment Roles',
       '👥'
     );
 
