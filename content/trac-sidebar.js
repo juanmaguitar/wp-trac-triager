@@ -1262,9 +1262,6 @@ function continueCreatingSidebar(contributorData, config, sectionOrder) {
   }
 
   if (!isVisible) {
-    sidebar.style.transform = isLeftSide ? 'translateX(-100%)' : 'translateX(100%)';
-    sidebarToggleBtn.style.display = 'flex';
-  }
     toggleSidebarVisibility(false);
   }
 
