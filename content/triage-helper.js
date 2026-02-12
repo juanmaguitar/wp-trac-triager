@@ -32,13 +32,6 @@
       return;
     }
 
-    console.log('[WP Trac Triager] Initializing...');
-    console.log('[WP Trac Triager] Data check:', {
-      KEYWORD_DATA: typeof KEYWORD_DATA !== 'undefined',
-      COMPONENT_MAINTAINERS: typeof COMPONENT_MAINTAINERS !== 'undefined',
-      CATEGORY_CONFIG: typeof CATEGORY_CONFIG !== 'undefined',
-      MAINTAINER_PROFILES: typeof MAINTAINER_PROFILES !== 'undefined'
-    });
 
     if (config.highlightComments) {
       highlightComments();
@@ -52,7 +45,6 @@
       createMaintainerInfoBox();
     }
 
-    console.log('[WP Trac Triager] Initialized successfully');
   }
 
   // Check if we're on a ticket page
@@ -80,7 +72,6 @@
   // Highlight comments from important users
   function highlightComments() {
     const comments = document.querySelectorAll('.change, #ticket');
-    console.log('[WP Trac Triager] Found comments:', comments.length);
 
     let highlightedCount = 0;
     comments.forEach(comment => {
@@ -98,7 +89,6 @@
       highlightedCount++;
     });
 
-    console.log('[WP Trac Triager] Highlighted comments:', highlightedCount);
   }
 
   // Extract username from author link
@@ -116,7 +106,6 @@
     // First, check for Trac's built-in role labels next to the username
     const roleLabel = detectRoleLabel(comment, authorLink);
     if (roleLabel) {
-      console.log('[WP Trac Triager] Found role via Trac label:', username, roleLabel);
       return roleLabel;
     }
 
@@ -124,7 +113,6 @@
     const component = getTicketComponent();
     if (component && typeof COMPONENT_MAINTAINERS !== 'undefined' && COMPONENT_MAINTAINERS[component]) {
       if (COMPONENT_MAINTAINERS[component].includes(username)) {
-        console.log('[WP Trac Triager] Found component maintainer:', username);
         return { type: 'component-maintainer', label: 'Component Maintainer' };
       }
     }
@@ -134,7 +122,6 @@
     if (reporterElement) {
       const reporter = extractUsername(reporterElement);
       if (reporter === username) {
-        console.log('[WP Trac Triager] Found reporter:', username);
         return { type: 'reporter', label: 'Reporter' };
       }
     }
@@ -142,7 +129,6 @@
     // Check wpTracContributorLabels from the page
     if (typeof wpTracContributorLabels !== 'undefined' && wpTracContributorLabels[username]) {
       const label = wpTracContributorLabels[username];
-      console.log('[WP Trac Triager] Found contributor from Trac:', username, label);
 
       // Map Trac labels to our types
       const typeMap = {
@@ -164,11 +150,9 @@
     const customTesters = config.customUsers.leadTesters || [];
 
     if (customCommitters.includes(username)) {
-      console.log('[WP Trac Triager] Found custom committer:', username);
       return { type: 'core-committer', label: 'Core Committer' };
     }
     if (customTesters.includes(username)) {
-      console.log('[WP Trac Triager] Found custom tester:', username);
       return { type: 'lead-tester', label: 'Lead Tester' };
     }
 

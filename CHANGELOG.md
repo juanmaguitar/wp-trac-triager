@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-02-11
+
+### Added - Configurable Sidebar Position
+
+#### Sidebar Positioning Control
+- **Left/Right Toggle**: New option in settings to position the sidebar on either the left or right side of the screen
+- **User Preference Storage**: Sidebar position preference is saved via Chrome storage and persists across sessions
+- **Smooth Transition**: Sidebar smoothly animates when repositioning between left and right
+- **Flexible Workflow**: Allows users to customize the sidebar position based on their screen layout and personal preference
+
+#### Technical Implementation
+- **New Setting**: Added "Sidebar Position" dropdown in Options page with "Right" (default) and "Left" options
+- **Dynamic CSS**: Sidebar positioning (left/right) is now controlled via JavaScript based on user preference
+- **Storage Integration**: Uses `chrome.storage.sync` to store and retrieve sidebar position preference
+- **Responsive Design**: Maintains proper spacing and layout regardless of sidebar position
+
+#### User Experience Benefits
+- **Personalization**: Customize sidebar placement to match your workflow
+- **Multi-Monitor Support**: Position sidebar optimally based on your screen setup
+- **Accessibility**: Choose the position that's most comfortable for your reading pattern
+
+### Changed - Enhanced Role-Based Visual Design
+
+#### Material Design Color Scheme
+- **Updated Role Colors**: Redesigned contributor role color scheme to align with Material Design principles
+- **Improved Contrast**: Better visibility and distinction between different contributor roles
+- **Consistent Styling**: Role badges now use consistent background colors, border colors, and text colors
+- **Visual Hierarchy**: Enhanced color-coding makes it easier to identify contributor authority levels at a glance
+
+#### Role-Specific Improvements
+- **Project Lead**: Updated to Deep Purple with improved contrast
+- **Lead Developer**: Updated to Indigo with better visibility
+- **Core Committer**: Updated to Teal for better distinction
+- **Emeritus Committer**: Updated to Deep Orange for clearer identification
+- **Component Maintainer**: Updated to Blue with enhanced contrast
+- **Lead Tester**: Updated to Pink for improved visibility
+- **Themes Committer**: Updated to Cyan with better clarity
+- **Individual Contributor**: Updated to Blue Grey for neutral identification
+
+#### Technical Updates
+- Updated [data/role-hierarchy.js](data/role-hierarchy.js) with new Material Design color palette
+- Enhanced badge rendering in [content/trac-sidebar.js](content/trac-sidebar.js) with role-specific styling
+- Improved visual consistency across all sidebar sections
+
 ## [1.6.0] - 2026-02-10
 
 ### Added - Reporter Highlighting for Core Team Members

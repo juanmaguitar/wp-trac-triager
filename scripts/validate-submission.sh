@@ -161,7 +161,7 @@ if [ -d "$SCREENSHOT_DIR" ]; then
 
         # Validate dimensions
         if command -v sips &> /dev/null; then
-            for screenshot in "$SCREENSHOT_DIR"/*.{png,jpg} 2>/dev/null; do
+            for screenshot in "$SCREENSHOT_DIR"/*.png "$SCREENSHOT_DIR"/*.jpg; do
                 [ -e "$screenshot" ] || continue
 
                 WIDTH=$(sips -g pixelWidth "$screenshot" 2>/dev/null | tail -1 | awk '{print $2}')
@@ -178,11 +178,11 @@ if [ -d "$SCREENSHOT_DIR" ]; then
         fi
     else
         check_fail "No screenshots found in $SCREENSHOT_DIR"
-        check_warn "Run ./scripts/convert-screenshots.sh to create them"
+        check_warn "Create screenshots at 1280×800 or 640×400 and place in $SCREENSHOT_DIR"
     fi
 else
     check_warn "$SCREENSHOT_DIR directory not found"
-    check_warn "Run ./scripts/convert-screenshots.sh to create screenshots"
+    check_warn "Create $SCREENSHOT_DIR and add screenshots (1280×800 or 640×400)"
 fi
 
 ###############################################################################
